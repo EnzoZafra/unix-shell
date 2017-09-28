@@ -11,4 +11,5 @@ typedef enum {
 } error_t;
 
 void get_time(char* buffer);
+int print_error(int error);
 #endif

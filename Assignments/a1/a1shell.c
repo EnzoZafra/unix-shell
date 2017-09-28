@@ -12,10 +12,10 @@ int print_error(int errorcode) {
       printf("usage: a1shell interval\n");
       break;
     case 2:
-      printf("Failed to set CPU time limit");
+      printf("Failed to set CPU time limit\n");
       break;
     case 3:
-      printf("Failed to fork a child process");
+      printf("Failed to fork a child process\n");
       break;
   }
   return -1;
@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
   } else {
     int interval = atoi(argv[1]);
 
-    // set a limit on CPU time (10 minutes)
-    struct rlimit rlim = {600, 600};
+    // set a limit on CPU time (1 minute for now)
+    struct rlimit rlim = {60, 60};
     if (setrlimit(RLIMIT_CPU, &rlim) == -1) {
       print_error(E_CPU_LIMIT);
     }
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     if (pid == 0) {
       while(getppid() != -1) {
         get_time(time_buffer);
-        printf("a1monitor: %s", time_buffer);
+        printf("a1monitor: %s\n", time_buffer);
       }
       exit(0);
     } // end of a1monitor process
