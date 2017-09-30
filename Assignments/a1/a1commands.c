@@ -4,6 +4,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "a1shell.h"
+
 void done(pid_t pid) {
   int tmp = getpid();
   printf("getpid() result: %i\n", tmp);
@@ -47,4 +49,14 @@ int change_dir(char* pathname) {
   }
 
   return 1;
+}
+
+void print_dir() {
+  char buf[512];
+  if (getcwd(buf, sizeof(buf)) != NULL) {
+    printf("%s\n", buf);
+  }
+  else {
+    print_error(E_PWD);
+  }
 }

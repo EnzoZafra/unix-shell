@@ -100,6 +100,9 @@ void print_error(int errorcode) {
     case 4:
       fprintf(stderr, "%s", "interval must be a positive integer\n");
       break;
+    case 5:
+      fprintf(stderr, "%s", "could not print current directory\n");
+      break;
   }
   exit(1);
 }
@@ -111,5 +114,8 @@ void parse_input(char* input) {
   }
   else if(strcmp(input, "done") == 0) {
     done(pid);
+  }
+  else if(strcmp(input, "pwd") == 0) {
+    print_dir();
   }
 }

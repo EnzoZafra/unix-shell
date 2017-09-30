@@ -8,7 +8,8 @@ typedef enum {
   E_USER = 1,
   E_CPU_LIMIT = 2,
   E_FORK_FAIL = 3,
-  E_NEGATIVE = 4
+  E_NEGATIVE = 4,
+  E_PWD = 5
 } error_t;
 
 void get_time(char* buffer);
