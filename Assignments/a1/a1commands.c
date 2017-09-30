@@ -28,6 +28,10 @@ int change_dir(char* pathname) {
     char *env_var = strtok(pathname, "/\n\t");
     // Get the directory of the environment variable
     char *env_var_dir = getenv(env_var);
+    if (env_var_dir == NULL) {
+      printf("cd: no such environment variable: %s\n", env_var);
+      return -1;
+    }
 
     // Grab the rest
     char *directory = strtok(NULL, "");

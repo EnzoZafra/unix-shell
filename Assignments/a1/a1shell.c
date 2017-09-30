@@ -144,4 +144,7 @@ void parse_input(char* input) {
   else if(strcmp(input, "umask") == 0) {
     print_umask();
   }
+  else if (strcmp(input, "\n") == 0) {
+    printf("TEST\n");
+  }
 }
