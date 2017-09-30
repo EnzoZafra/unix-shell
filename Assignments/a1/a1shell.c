@@ -118,4 +118,7 @@ void parse_input(char* input) {
   else if(strcmp(input, "pwd") == 0) {
     print_dir();
   }
+  else if(strcmp(input, "umask") == 0) {
+    print_umask();
+  }
 }

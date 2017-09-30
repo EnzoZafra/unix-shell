@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "a1shell.h"
 
@@ -59,4 +60,12 @@ void print_dir() {
   else {
     print_error(E_PWD);
   }
+}
+
+void print_umask() {
+  mode_t mask = umask(0);
+  printf("umask: %0.4o\n", mask);
+  printf("S_IRWXU: %0.4o\n", S_IRWXU);
+  printf("S_IRWXG: %0.4o\n", S_IRWXG);
+  printf("S_IRWXO: %0.4o\n", S_IRWXO);
 }
