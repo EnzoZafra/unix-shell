@@ -54,6 +54,7 @@ int main(int argc, char *argv[]) {
       while(getppid() != -1) {
         get_time(time_buffer);
         printf("a1monitor: %s\n", time_buffer);
+        get_sysinfo();
         sleep(interval);
       }
       exit(0);
@@ -86,6 +87,25 @@ void get_time(char* buffer) {
   strftime(buffer, BUFF_SIZE, "%a, %b %d, %Y %T %p", outtime);
 }
 
+void get_sysinfo() {
+  FILE* filestream = fopen("/proc/loadavg", "r");
+  float one_min, five_min, fifteen_min;
+  char processes[10];
+  int last_proc[10];
+
+  if (filestream == NULL) {
+    print_error(E_FILESTREAM);
+  }
+  else {
+    fscanf(filestream, "%f %f %f %s %i",
+        &one_min, &five_min, &fifteen_min, processes, last_proc);
+    fclose(filestream);
+    printf("           Load average: %0.2f, %0.2f, %0.2f\n", one_min, five_min, fifteen_min);
+    printf("           Processes: %s\n", processes);
+
+  }
+}
+
 void print_error(int errorcode) {
   switch (errorcode) {
     case 1:
@@ -102,6 +122,9 @@ void print_error(int errorcode) {
       break;
     case 5:
       fprintf(stderr, "%s", "could not print current directory\n");
+      break;
+    case 6:
+      fprintf(stderr, "%s", "could not open file\n");
       break;
   }
   exit(1);
