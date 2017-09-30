@@ -6,8 +6,8 @@ TARGET = a1shell
 
 all: $(TARGET)
 
-$(TARGET): $(TARGET).c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+$(TARGET): $(TARGET).c a1commands.c
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c a1commands.c
 
 clean:
-	$(RM) -rf $(TARGET) $(TARGET).dSYM
+	$(RM) -rf $(TARGET) a1commands.o $(TARGET).dSYM

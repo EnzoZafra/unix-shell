@@ -7,9 +7,11 @@
 typedef enum {
   E_USER = 1,
   E_CPU_LIMIT = 2,
-  E_FORK_FAIL = 3
+  E_FORK_FAIL = 3,
+  E_NEGATIVE = 4
 } error_t;
 
 void get_time(char* buffer);
-int print_error(int error);
+void print_error(int error);
+void parse_input(char* input);
 #endif
