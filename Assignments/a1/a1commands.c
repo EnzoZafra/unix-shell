@@ -8,11 +8,7 @@
 #include "a1shell.h"
 
 void done(pid_t pid) {
-  int tmp = getpid();
-  printf("getpid() result: %i\n", tmp);
-  printf("pid result: %i\n", pid);
-  int returned = kill(tmp, 9);
-  printf("kill returned %i\n", returned);
+  kill(0, 9);
 }
 
 int change_dir(char* pathname) {
@@ -68,8 +64,8 @@ void print_dir() {
 
 void print_umask() {
   mode_t mask = umask(0);
-  printf("umask: %0.4o\n", mask);
-  printf("S_IRWXU: %0.4o\n", S_IRWXU);
-  printf("S_IRWXG: %0.4o\n", S_IRWXG);
-  printf("S_IRWXO: %0.4o\n", S_IRWXO);
+  printf("umask: %04o\n", mask);
+  printf("S_IRWXU: %04o\n", S_IRWXU);
+  printf("S_IRWXG: %04o\n", S_IRWXG);
+  printf("S_IRWXO: %04o\n", S_IRWXO);
 }

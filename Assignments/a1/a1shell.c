@@ -57,7 +57,8 @@ int main(int argc, char *argv[]) {
         get_sysinfo();
         sleep(interval);
       }
-      exit(0);
+      // _Exit() should be used for child processes
+      _Exit(EXIT_SUCCESS);
     } // end of a1monitor process
 
     // parent process - a1shell
@@ -72,7 +73,7 @@ int main(int argc, char *argv[]) {
         // Parse input for the command
         parse_input(input);
       }
-      exit(0);
+      exit(EXIT_SUCCESS);
     } // end of a1shell process
   }
 }
@@ -127,7 +128,7 @@ void print_error(int errorcode) {
       fprintf(stderr, "%s", "could not open file\n");
       break;
   }
-  exit(1);
+  exit(EXIT_FAILURE);
 }
 
 void parse_input(char* input) {
