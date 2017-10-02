@@ -127,6 +127,10 @@ void print_error(int errorcode) {
     case 6:
       fprintf(stderr, "%s", "could not open file\n");
       break;
+    case 7:
+      fprintf(stderr, "%s", "fail at waitpid during execl\n");
+    case 8:
+      fprintf(stderr, "%s", "fail to retrieve clktck\n");
   }
   exit(EXIT_FAILURE);
 }
@@ -147,5 +151,8 @@ void parse_input(char* input) {
   }
   else if (strcmp(input, "\n") == 0) {
     printf("TEST\n");
+  }
+  else {
+    bash_command(input);
   }
 }

@@ -1,3 +1,11 @@
+/**
+  *
+  * a1shell.h
+  *
+  * Lorenzo Zafra 1395521
+  * CMPUT 379 Assignment1
+  */
+
 #ifndef a1shell_h
 #define a1shell_h
 
@@ -10,8 +18,9 @@ typedef enum {
   E_FORK_FAIL = 3,
   E_NEGATIVE = 4,
   E_PWD = 5,
-  E_FILESTREAM = 6
-
+  E_FILESTREAM = 6,
+  E_WAIT_FAIL = 7,
+  E_CLKTCK = 8
 } error_t;
 
 void get_time(char* buffer);
