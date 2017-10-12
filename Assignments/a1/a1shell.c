@@ -78,6 +78,7 @@ int main(int argc, char *argv[]) {
   }
 }
 
+// Prints the current date and time to the user
 void get_time(char* buffer) {
   time_t rawtime;
   struct tm *outtime;
@@ -88,6 +89,7 @@ void get_time(char* buffer) {
   strftime(buffer, BUFF_SIZE, "%a, %b %d, %Y %T %p", outtime);
 }
 
+// Prints the loadavg info and processes info to the user
 void get_sysinfo() {
   FILE* filestream = fopen("/proc/loadavg", "r");
   float one_min, five_min, fifteen_min;
@@ -107,6 +109,7 @@ void get_sysinfo() {
   }
 }
 
+// Prints errors to the user depending on the code.
 void print_error(int errorcode) {
   switch (errorcode) {
     case 1:
@@ -135,6 +138,7 @@ void print_error(int errorcode) {
   exit(EXIT_FAILURE);
 }
 
+// parses the user input in a1shell.
 void parse_input(char* input) {
   if(strcmp(input, "cd") == 0) {
     char pathname[512];

@@ -13,5 +13,5 @@ clean:
 	$(RM) -rf $(TARGET) a1commands.o $(TARGET).dSYM submit.tar
 
 tar:
-	tar -zcvf submit.tar $(TARGET).c a1shell.h a1commands.c a1commands.h Makefile
+	tar -zcvf submit.tar $(TARGET).c a1shell.h a1commands.c a1commands.h Makefile project_report.pdf
 
