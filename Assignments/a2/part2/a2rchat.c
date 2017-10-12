@@ -1,30 +1,44 @@
 /**
   *
-  * a2chat.c
+  * a2rchat.c
   *
   * Lorenzo Zafra 1395521
-  * CMPUT 379 Assignment 2
+  * CMPUT 379 Assignment 2 Phase 1
   */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "a2chat.h"
+#include "a2rchat.h"
+#include "client.h"
+#include "server.h"
 
 int main(int argc, char *argv[]) {
+  if (argc < 3) {
+    print_error(E_USG);
+  }
+
   char* option = argv[1];
-  printf("%s\n", option); // TESTING
+  char* baseName = argv[2];
+
   if (strncmp(option, "-s", 2) == 0) {
     if (argc != 4) {
       print_error(E_USG_S);
     }
+    int nclient = atoi(argv[3]);
+    if (nclient <= 0 || nclient > 5) {
+      print_error(E_NEGATIVE);
+    }
+    start_server(baseName, nclient);
   }
   else if (strncmp(option, "-c", 2) == 0) {
     if (argc != 3) {
       print_error(E_USG_C);
     }
-  } else {
+    start_client(baseName);
+  }
+  else {
     print_error(E_USG);
   }
 }
@@ -41,6 +55,11 @@ void print_error(int errorcode) {
     case 3:
       fprintf(stderr, "%s", "usage: a2chat [-c | -s] baseName [nclient]\n");
       break;
+    case 4:
+      fprintf(stderr, "%s", "nclient must be an integer in the range 0 < nclient <= 5\n");
+    case 5:
+      fprintf(stderr, "%s", "failed to make FIFOs. Please delete all "
+                            "FIFOs with the following command:\nfind . -type p -delete\n");
   }
   exit(EXIT_FAILURE);
 }

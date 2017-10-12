@@ -1,13 +1,13 @@
 /**
   *
-  * a2chat.h
+  * a2rchat.h
   *
   * Lorenzo Zafra 1395521
-  * CMPUT 379 Assignment 2
+  * CMPUT 379 Assignment 2 Phase 1
   */
 
-#ifndef a2chat_h
-#define a2chat_h
+#ifndef a2rchat_h
+#define a2rchat_h
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +17,7 @@ typedef enum {
   E_USG_C = 2,
   E_USG = 3,
   E_NEGATIVE = 4,
-  E_PWD = 5,
+  E_FIFO = 5,
   E_FILESTREAM = 6,
   E_WAIT_FAIL = 7,
   E_CLKTCK = 8
