@@ -26,7 +26,6 @@ struct conn connections[NMAX];
 void start_server(char* baseName, int nclient) {
   // Add one for stdin
   struct pollfd in_fds[NMAX + 1];
-  struct pollfd out_fds[NMAX];
   char infifo[MAX_FIFO_NAME];
   char outfifo[MAX_FIFO_NAME + 1];
   int file_desc, rval, timeout, len;
@@ -47,6 +46,7 @@ void start_server(char* baseName, int nclient) {
     // Build our connections struct array
     memset(outfifo, 0, sizeof outfifo);
     snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseName, i+1);
+	printf("connections[%i].fifoname: %s\n", i, outfifo);
     connections[i].fifoname = outfifo;
     connections[i].connected = 0;
     connections[i].username = NULL;
@@ -78,7 +78,7 @@ void start_server(char* baseName, int nclient) {
           memset(buf, 0, sizeof(buf));
           if (read(in_fds[j].fd, buf, MAX_OUT_LINE) > 0) {
             printf("received: %s\n", buf);
-            cmd = strtok(buf, ",\n");
+            cmd = strtok(buf, "\n");
             printf("cmd: %s\n", cmd);
             // if j == 0, this is the stdin file descriptor
             if (j == 0) {
@@ -101,9 +101,11 @@ void start_server(char* baseName, int nclient) {
   }
 }
 
-void parse_cmd(char* cmd, int pipenumber) {
+void parse_cmd(char* buf, int pipenumber) {
+  char* cmd = strtok(buf, "|\n");
   if (strcmp(cmd, "open") == 0) {
-    server_open(pipenumber);
+    char* username = strtok(NULL, "|\n");
+    server_open(pipenumber, username);
   }
   else if (strcmp(cmd, "who") == 0) {
     // Not needed for phase 1
@@ -126,16 +128,20 @@ void parse_cmd(char* cmd, int pipenumber) {
   }
 }
 
-int server_open(int pipenumber) {
+int server_open(int pipenumber, char* username) {
   int file_desc;
-  char *outmsg;
-  char *username;
+  char msg_out[MAX_BUF];
 
-  username = strtok(NULL, ",\n");
-  if (username != NULL) {
-    printf("Failed to find username\n"); // Testing
+  for (int i = 0; i < NMAX+1; i++) {
+	  printf("connections[%i].fifoname: %s\n", i, connections[i].fifoname);
   }
-  char *outfifo = connections[pipenumber-1].fifoname;
+
+  // Testing uncomment later
+  /* char *outfifo = connections[pipenumber].fifoname; */
+  /* printf("outfifo: %s, pipenumber: %d, pipenumber-1: %d\n", outfifo, pipenumber, pipenumber-1); */
+
+  char outfifo[MAX_BUF];
+  snprintf(outfifo, sizeof outfifo, "lol-1.out");
   file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
 
   if (lockf(file_desc, F_TEST, 0) == -1) {
@@ -148,18 +154,21 @@ int server_open(int pipenumber) {
       connections[pipenumber - 1].connected = true;
       connections[pipenumber - 1].username = username;
       connections[pipenumber - 1].fd = file_desc;
+  	  printf("TEST SUCCESS outFIFO \n"); // Testing
 
+      memset(msg_out, 0, sizeof(msg_out));
       // Write server msg to fifo
-      snprintf(outmsg, sizeof(outmsg), "[server] User `%s\n` connected on FIFO %d\n",
+      snprintf(msg_out, sizeof(msg_out), "[server] User `%s\n` connected on FIFO %d\n",
                 username, pipenumber);
 
-      if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
+      if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
         print_error(E_WRITE_OUT);
       }
 
       return file_desc;
     }
   }
+  return -1;
 }
 
 void server_list_logged() {

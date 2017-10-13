@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <poll.h>
 
 #include "a2rchat.h"
 #include "client.h"
@@ -20,18 +21,56 @@
 
 char* baseFifoName;
 int fd = -1;
+struct pollfd out_fds[NMAX];
 
 void start_client(char* baseName) {
-  char input[MAX_COMMAND_LINE];
+  // One for STDIN and one for a outFIFO
+  int numfds = 2;
+  char buf[MAX_BUF];
   char* command;
+  int rval, timeout;
 
   baseFifoName = baseName;
   printf("Chat client begins\n");
 
+  // Add STDIN file descriptor to array
+  out_fds[0].fd = STDIN_FILENO;
+  out_fds[0].events = POLLIN;
+  out_fds[0].revents = 0;
+
+  timeout = 0;
+
   while(1) {
     printf("a2chat_client: ");
-    if (!(fgets(input, sizeof(input), stdin) == NULL || strcmp(&input[0], "\n") == 0)) {
-      command = strtok(input, " \n");
+
+    /* rval = poll(out_fds, 2, timeout); */
+    /* if (rval == -1) { */
+    /*   print_error(E_POLL); */
+    /* } */
+    /* else if (rval != 0) { */
+    /*   for (int j = 0; j < numfds; j++) { */
+    /*     if(out_fds[j].revents & POLLIN) { */
+    /*       // Clear buffer */
+    /*       memset(buf, 0, sizeof(buf)); */
+    /*       if (read(out_fds[j].fd, buf, MAX_BUF) > 0) { */
+    /*         printf("received: %s\n", buf); // Testing */
+    /*         command = strtok(buf, "\n"); */
+    /*         printf("command: %s\n", command); // Testing */
+    /*         // STDIN */
+    /*         if (j == 0) { */
+    /*           parse_input(command); */
+    /*         } */
+    /*         // Server message */
+    /*         else { */
+    /*           printf("%s\n", command); */
+    /*         } */
+    /*       } */
+    /*     } */
+    /*   } */
+    /* } */
+
+    if (!(fgets(buf, sizeof(buf), stdin) == NULL || strcmp(&buf[0], "\n") == 0)) {
+      command = strtok(buf, " \n");
       parse_input(command);
     }
   }
@@ -76,6 +115,7 @@ void parse_input(char* input) {
 
 int open_chat(char* username) {
   char infifo[MAX_FIFO_NAME];
+  char outfifo[MAX_FIFO_NAME+1];
   char outmsg[MAX_OUT_LINE];
   int file_desc;
 
@@ -92,8 +132,15 @@ int open_chat(char* username) {
         // Successfully locked and connected to a FIFO
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
+        // Listen to outFIFO
+        int outfd = open(outfifo, O_RDONLY | O_NONBLOCK);
+        snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseFifoName, i);
+        out_fds[1].fd = outfd;
+        out_fds[1].events = POLLIN;
+        out_fds[1].revents = 0;
+
         // Write command, username to the fifo so server knows we connected
-        snprintf(outmsg, sizeof(outmsg), "%s,%s,", "open", username);
+        snprintf(outmsg, sizeof(outmsg), "%s|%s|", "open", username);
 
         if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
           print_error(E_WRITE_IN);

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_COMMAND_LINE 120
+#define MAX_BUF 512
 #define MAX_OUT_LINE 240
 
 void start_client(char* baseName);

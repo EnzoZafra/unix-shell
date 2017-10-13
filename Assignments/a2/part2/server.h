@@ -24,7 +24,7 @@ typedef struct conn {
 
 void start_server(char* baseName, int nclient);
 void parse_cmd(char* cmd, int pipenumber);
-int server_open(int pipenumber);
+int server_open(int pipenumber, char* username);
 void server_list_logged();
 void server_add_receipient();
 void server_receive_msg();
