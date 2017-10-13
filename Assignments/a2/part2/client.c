@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "a2rchat.h"
 #include "client.h"
@@ -75,24 +76,31 @@ void parse_input(char* input) {
 }
 
 int open_chat(char* username) {
-  char infifo_name[MAX_FIFO_NAME];
+  char infifo[MAX_FIFO_NAME];
+  char outmsg[MAX_OUT_LINE];
   int file_desc;
 
   for (int i = 1; i <= NMAX; i++) {
-    memset(infifo_name, 0, sizeof infifo_name);
-    snprintf(infifo_name, sizeof infifo_name, "%s-%d.in", baseFifoName, i);
-    file_desc = open(infifo_name, O_RDWR|O_NONBLOCK);
+    memset(infifo, 0, sizeof infifo);
+    snprintf(infifo, sizeof infifo, "%s-%d.in", baseFifoName, i);
+    file_desc = open(infifo, O_WRONLY | O_NONBLOCK);
 
     if (lockf(file_desc, F_TEST, 0) == -1) {
-      printf("fail to lock \n"); // Testing
+      printf("errno: %d\n", errno);
       close(file_desc);
     }
     else {
       if (lockf(file_desc, F_LOCK, 0) != -1) {
-
         // Successfully locked and connected to a FIFO
-        printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo_name, getpid());
-        printf("file_desc: %d\n", file_desc); // Testing
+        printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
+
+        // Write username, command, fifo number to the fifo so server knows we connected
+        snprintf(outmsg, sizeof(outmsg), "%s %s %d", username, "open", i);
+
+        //TODO errorcheck
+        write(file_desc, outmsg, sizeof(outmsg));
+        close(file_desc);
+
         return file_desc;
       }
     }
