@@ -66,6 +66,8 @@ void print_error(int errorcode) {
       fprintf(stderr, "error when polling file descriptors\n");
     case 8:
       fprintf(stderr, "failed to write to outFIFO\n");
+    case 9:
+      fprintf(stderr, "failed to write read FIFO\n");
   }
   exit(EXIT_FAILURE);
 }

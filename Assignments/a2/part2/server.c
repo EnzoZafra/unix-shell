@@ -21,7 +21,8 @@
 
 void start_server(char* baseName, int nclient) {
   // Add one for stdin
-  struct pollfd fds[NMAX + 1];
+  struct pollfd in_fds[NMAX + 1];
+  struct pollfd out_fds[NMAX];
   char infifo[MAX_FIFO_NAME];
   int file_desc, rval, timeout, len;
   char buf[MAX_OUT_LINE];
@@ -33,51 +34,116 @@ void start_server(char* baseName, int nclient) {
   printf("Chat server begins [number of clients = %d]\n", nclient);
 
   // Add STDIN file descriptor to our array
-  fds[0].fd = STDIN_FILENO;
-  fds[0].events = POLLIN;
-  fds[0].revents = 0;
+  in_fds[0].fd = STDIN_FILENO;
+  in_fds[0].events = POLLIN;
+  in_fds[0].revents = 0;
 
   for (int i = 0; i < nclient; i++) {
     memset(infifo, 0, sizeof infifo);
     snprintf(infifo, sizeof infifo, "%s-%d.in", baseName, i+1);
     file_desc = open(infifo, O_RDONLY | O_NONBLOCK);
 
-    fds[i+1].fd = file_desc;
-    fds[i+1].events = POLLIN;
-    fds[i+1].revents = 0;
-    printf("infifo: %s ; file_desc: %i\n", infifo, fds[i+1].fd); // Testing
+    in_fds[i+1].fd = file_desc;
+    in_fds[i+1].events = POLLIN;
+    in_fds[i+1].revents = 0;
+    printf("infifo: %s ; file_desc: %i\n", infifo, in_fds[i+1].fd); // Testing
   }
   timeout = 0;
 
   while (1) {
-    rval = poll(fds, nclient, timeout);
+    rval = poll(in_fds, nclient, timeout);
     if (rval == -1) {
       print_error(E_POLL);
     }
     // If there is a return value in poll then a pipe has data
     else if (rval != 0) {
+      // Find the fd that has data
       for (int j = 0; j <= nclient; j++) {
-        if (j == 0 && (fds[j].revents & POLLIN)) {
-          if (read(fds[j].fd, buf, MAX_OUT_LINE) > 0) {
-            buf[sizeof(buf)-1] = '\0';
+        if (in_fds[j].revents & POLLIN) {
+          // Clear the buffer
+          memset(buf, 0, sizeof(buf));
+          if (read(in_fds[j].fd, buf, MAX_OUT_LINE) > 0) {
             printf("received: %s\n", buf);
             cmd = strtok(buf, ",\n");
+            printf("cmd: %s\n", cmd);
+            // if j == 0, this is the stdin file descriptor
+            if (j == 0) {
+              // Server "exit" command from STDIN terminates server
+              if (strcmp(cmd, "exit") == 0) {
+                exit(EXIT_SUCCESS);
+              }
+            }
+            // pipe FD
+            else {
+              parse_cmd(cmd);
+            }
           }
-        }
-        else if (j != 0 && (fds[j].revents & POLLIN)) {
-          if ((len = read(fds[j].fd, buf, MAX_OUT_LINE)) > 0) {
-            buf[sizeof(buf)-1] = '\0';
-            printf("received: %s\n", buf);
-            username = strtok(buf, ",\n");
-            cmd = strtok(NULL, ",\n");
-            fifonum = strtok(NULL, ",\n");
-            printf("username: %s;;;cmd: %s;;;fifonum: %s\n", username, cmd, fifonum);
+          else {
+            print_error(E_READ);
           }
         }
       }
     }
   }
 }
+
+
+
+void parse_cmd(char* cmd) {
+  if (strcmp(cmd, "open") == 0) {
+    server_open();
+  }
+  else if (strcmp(cmd, "who") == 0) {
+    // Not needed for phase 1
+    /* server_list_logged(); */
+    return;
+  }
+  else if (strcmp(cmd, "to") == 0) {
+    // Not needed for phase 1
+    /* server_add_receipient(); */
+    return;
+  }
+  else if (strcmp(cmd, "<") == 0) {
+    server_receive_msg();
+  }
+  else if (strcmp(cmd, "close") == 0) {
+    server_close_client();
+  }
+  else if (strcmp(cmd, "exit") == 0) {
+    server_exit_client();
+  }
+}
+
+void server_open() {
+  //TODO:
+  printf("Not implemented yet\n");
+}
+
+void server_list_logged() {
+  //TODO:
+  printf("Not implemented yet\n");
+}
+
+void server_add_receipient() {
+  //TODO:
+  printf("Not implemented yet\n");
+}
+
+void server_receive_msg() {
+  //TODO:
+  printf("Not implemented yet\n");
+}
+
+void server_close_client() {
+  //TODO:
+  printf("Not implemented yet\n");
+}
+
+void server_exit_client() {
+  //TODO:
+  printf("Not implemented yet\n");
+}
+
 
 void createFIFOs(char* baseName, int nclient) {
   char in_name[MAX_FIFO_NAME];

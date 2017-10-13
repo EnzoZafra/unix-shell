@@ -22,8 +22,11 @@ typedef enum {
   E_FIFO = 5,
   E_WRITE_IN = 6,
   E_POLL = 7,
-  E_WRITE_OUT = 8
+  E_WRITE_OUT = 8,
+  E_READ = 9
 } error_t;
 
 void print_error(int errorcode);
+void write_fifo(int fd, char* msg); // helper function TODO
+void read_fifo(int fd, char* buf);
 #endif

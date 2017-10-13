@@ -46,7 +46,7 @@ void parse_input(char* input) {
       fd = open_chat(username);
     }
     else {
-      printf("please enter a username");
+      printf("usage: open [username]");
     }
   }
   else if (strcmp(input, "who") == 0) {
@@ -92,12 +92,11 @@ int open_chat(char* username) {
         // Successfully locked and connected to a FIFO
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
-        // Write username, command, fifo number to the fifo so server knows we connected
-        snprintf(outmsg, sizeof(outmsg), "%s,%s,%d,", username, "open", i);
+        // Write command, fifo number, username to the fifo so server knows we connected
+        snprintf(outmsg, sizeof(outmsg), "%s,%d,%s,", "open", i, username);
 
         if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
-          printf("failed to write to infifo!! \n");  // Testing
-          /* print_error(E_WRITE_IN); */
+          print_error(E_WRITE_IN);
         }
         else {
           printf("wrote %s to file_desc: %i\n", outmsg, file_desc); // Testing
@@ -126,19 +125,25 @@ void send_chat(char* message) {
 }
 
 void close_client() {
-  if (fd != NULL) {
+  char outmsg[MAX_OUT_LINE];
+  if (fd != -1) {
     close(fd);
   }
   else {
     printf("You are not connected to a chat session.\n");
   }
-  // TODO
-  printf("Not yet implemented\n");
+  // TODO: write more info?
+  // write command to the pipe
+  snprintf(outmsg, sizeof(outmsg), "close");
+  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_IN);
+  }
+  else {
+    printf("wrote %s to file_desc: %i\n", outmsg, fd); // Testing
+  }
 }
 
 void exit_client() {
   close(fd);
   exit(EXIT_SUCCESS);
 }
-
-

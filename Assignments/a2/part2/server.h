@@ -15,5 +15,12 @@
 #define MAX_FIFO_NAME 30
 
 void start_server(char* baseName, int nclient);
+void parse_cmd(char*);
+void server_open();
+void server_list_logged();
+void server_add_receipient();
+void server_receive_msg();
+void server_close_client();
+void server_exit_client();
 void createFIFOs(char* baseName, int nclient);
 #endif
