@@ -19,6 +19,7 @@
 #include "server.h"
 
 char* baseFifoName;
+int fd;
 
 void start_client(char* baseName) {
   char input[MAX_COMMAND_LINE];
@@ -42,7 +43,7 @@ void parse_input(char* input) {
     username = strtok(NULL, "\n");
     if (username != NULL) {
       username[strcspn(username, "\n")] = 0;
-      open_chat(username);
+      fd = open_chat(username);
     }
     else {
       printf("please enter a username");
@@ -73,27 +74,33 @@ void parse_input(char* input) {
   }
 }
 
-void open_chat(char* username) {
+int open_chat(char* username) {
   char infifo_name[MAX_FIFO_NAME];
   int file_desc;
-
-  printf("username: %s\n", username);   // Testing
 
   for (int i = 1; i <= NMAX; i++) {
     memset(infifo_name, 0, sizeof infifo_name);
     snprintf(infifo_name, sizeof infifo_name, "%s-%d.in", baseFifoName, i);
-    if (file_desc = open(infifo_name, O_WRONLY) != -1) {
-      if (lockf(file_desc, F_TEST, 0) == -1) {
-        close(file_desc);
-      }
-      else {
-        lockf(file_desc, F_LOCK, 0);        // 0 here may be causing errors TESTING
-      }
+    file_desc = open(infifo_name, O_RDWR|O_NONBLOCK);
+
+    if (lockf(file_desc, F_TEST, 0) == -1) {
+      printf("fail to lock \n"); // Testing
+      close(file_desc);
     }
     else {
-      print_error(E_NO_FD);
+      if (lockf(file_desc, F_LOCK, 0) != -1) {
+
+        // Successfully locked and connected to a FIFO
+        printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo_name, getpid());
+        printf("file_desc: %d\n", file_desc); // Testing
+        return file_desc;
+      }
     }
   }
+
+  // Was not able to find an unlocked FIFO
+  printf("No unlocked inFIFO is available for use. Please try again later.\n");
+  return -1;
 }
 
 void list_logged() {
@@ -108,7 +115,7 @@ void send_chat(char* message) {
   printf("message: %s\n", message);   // Testing
 }
 
-void close() {
+void close_client() {
   printf("Not yet implemented\n");
 }
 

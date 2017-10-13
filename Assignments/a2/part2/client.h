@@ -16,7 +16,7 @@
 
 void start_client(char* baseName);
 void parse_input(char* input);
-void open_chat(char* username);
+int open_chat(char* username);
 void list_logged();
 void add_receipient();
 void send_chat(char* message);
