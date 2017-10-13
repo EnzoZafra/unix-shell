@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
       print_error(E_USG_S);
     }
     int nclient = atoi(argv[3]);
-    if (nclient <= 0 || nclient > 5) {
+    if (nclient <= 0 || nclient > NMAX) {
       print_error(E_NEGATIVE);
     }
     start_server(baseName, nclient);
@@ -47,19 +47,21 @@ int main(int argc, char *argv[]) {
 void print_error(int errorcode) {
   switch (errorcode) {
     case 1:
-      fprintf(stderr, "%s", "usage: a2chat -s baseName nclient\n");
+      fprintf(stderr, "usage: a2chat -s baseName nclient\n");
       break;
     case 2:
-      fprintf(stderr, "%s", "usage: a2chat -c baseName\n");
+      fprintf(stderr, "usage: a2chat -c baseName\n");
       break;
     case 3:
-      fprintf(stderr, "%s", "usage: a2chat [-c | -s] baseName [nclient]\n");
+      fprintf(stderr, "usage: a2chat [-c | -s] baseName [nclient]\n");
       break;
     case 4:
-      fprintf(stderr, "%s", "nclient must be an integer in the range 0 < nclient <= 5\n");
+      fprintf(stderr, "client must be an integer in the range 0 < nclient <= 5\n");
     case 5:
-      fprintf(stderr, "%s", "failed to make FIFOs. Please delete all "
-                            "FIFOs with the following command:\nfind . -type p -delete\n");
+      fprintf(stderr, "failed to make FIFOs. Please delete all "
+                      "FIFOs with the following command:\nfind . -type p -delete\n");
+    case 6:
+      fprintf(stderr, "failed to open FIFO\n");
   }
   exit(EXIT_FAILURE);
 }
