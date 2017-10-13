@@ -19,16 +19,21 @@
 #include "client.h"
 #include "server.h"
 
+char* baseFifoName;
+struct conn;
+struct conn connections[NMAX];
+
 void start_server(char* baseName, int nclient) {
   // Add one for stdin
   struct pollfd in_fds[NMAX + 1];
   struct pollfd out_fds[NMAX];
   char infifo[MAX_FIFO_NAME];
+  char outfifo[MAX_FIFO_NAME + 1];
   int file_desc, rval, timeout, len;
   char buf[MAX_OUT_LINE];
-  char* username;
   char* cmd;
-  char* fifonum;
+
+  baseFifoName = baseName;
 
   createFIFOs(baseName, nclient);
   printf("Chat server begins [number of clients = %d]\n", nclient);
@@ -39,6 +44,15 @@ void start_server(char* baseName, int nclient) {
   in_fds[0].revents = 0;
 
   for (int i = 0; i < nclient; i++) {
+    // Build our connections struct array
+    memset(outfifo, 0, sizeof outfifo);
+    snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseName, i+1);
+    connections[i].fifoname = outfifo;
+    connections[i].connected = 0;
+    connections[i].username = NULL;
+    connections[i].fd = -1;
+
+    // Build in_fds struct array
     memset(infifo, 0, sizeof infifo);
     snprintf(infifo, sizeof infifo, "%s-%d.in", baseName, i+1);
     file_desc = open(infifo, O_RDONLY | O_NONBLOCK);
@@ -75,7 +89,7 @@ void start_server(char* baseName, int nclient) {
             }
             // pipe FD
             else {
-              parse_cmd(cmd);
+              parse_cmd(cmd, j);
             }
           }
           else {
@@ -87,11 +101,9 @@ void start_server(char* baseName, int nclient) {
   }
 }
 
-
-
-void parse_cmd(char* cmd) {
+void parse_cmd(char* cmd, int pipenumber) {
   if (strcmp(cmd, "open") == 0) {
-    server_open();
+    server_open(pipenumber);
   }
   else if (strcmp(cmd, "who") == 0) {
     // Not needed for phase 1
@@ -114,9 +126,40 @@ void parse_cmd(char* cmd) {
   }
 }
 
-void server_open() {
-  //TODO:
-  printf("Not implemented yet\n");
+int server_open(int pipenumber) {
+  int file_desc;
+  char *outmsg;
+  char *username;
+
+  username = strtok(NULL, ",\n");
+  if (username != NULL) {
+    printf("Failed to find username\n"); // Testing
+  }
+  char *outfifo = connections[pipenumber-1].fifoname;
+  file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
+
+  if (lockf(file_desc, F_TEST, 0) == -1) {
+    close(file_desc);
+    print_error(E_CONN_OUTFIFO);
+  }
+  else {
+    if (lockf(file_desc, F_LOCK, 0) != -1) {
+      // Successfully locked and connected to a FIFO
+      connections[pipenumber - 1].connected = true;
+      connections[pipenumber - 1].username = username;
+      connections[pipenumber - 1].fd = file_desc;
+
+      // Write server msg to fifo
+      snprintf(outmsg, sizeof(outmsg), "[server] User `%s\n` connected on FIFO %d\n",
+                username, pipenumber);
+
+      if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
+        print_error(E_WRITE_OUT);
+      }
+
+      return file_desc;
+    }
+  }
 }
 
 void server_list_logged() {
@@ -136,7 +179,7 @@ void server_receive_msg() {
 
 void server_close_client() {
   //TODO:
-  printf("Not implemented yet\n");
+
 }
 
 void server_exit_client() {

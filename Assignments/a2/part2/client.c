@@ -92,8 +92,8 @@ int open_chat(char* username) {
         // Successfully locked and connected to a FIFO
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
-        // Write command, fifo number, username to the fifo so server knows we connected
-        snprintf(outmsg, sizeof(outmsg), "%s,%d,%s,", "open", i, username);
+        // Write command, username to the fifo so server knows we connected
+        snprintf(outmsg, sizeof(outmsg), "%s,%s,", "open", username);
 
         if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
           print_error(E_WRITE_IN);

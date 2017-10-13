@@ -68,6 +68,9 @@ void print_error(int errorcode) {
       fprintf(stderr, "failed to write to outFIFO\n");
     case 9:
       fprintf(stderr, "failed to write read FIFO\n");
+    case 10:
+      fprintf(stderr, "failed to connect to corresponding outFIFO\n");
+
   }
   exit(EXIT_FAILURE);
 }
