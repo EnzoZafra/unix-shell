@@ -13,14 +13,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include "a2rchat.h"
 #include "client.h"
 #include "server.h"
 
 char* baseFifoName;
-int fd;
+int fd = -1;
 
 void start_client(char* baseName) {
   char input[MAX_COMMAND_LINE];
@@ -86,7 +85,6 @@ int open_chat(char* username) {
     file_desc = open(infifo, O_WRONLY | O_NONBLOCK);
 
     if (lockf(file_desc, F_TEST, 0) == -1) {
-      printf("errno: %d\n", errno); // TESTING
       close(file_desc);
     }
     else {
@@ -95,7 +93,7 @@ int open_chat(char* username) {
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
         // Write username, command, fifo number to the fifo so server knows we connected
-        snprintf(outmsg, sizeof(outmsg), "%s, %s, %d,", username, "open", i);
+        snprintf(outmsg, sizeof(outmsg), "%s,%s,%d,", username, "open", i);
 
         if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
           printf("failed to write to infifo!! \n");  // Testing
@@ -104,7 +102,6 @@ int open_chat(char* username) {
         else {
           printf("wrote %s to file_desc: %i\n", outmsg, file_desc); // Testing
         }
-        close(file_desc);
 
         return file_desc;
       }
@@ -129,11 +126,19 @@ void send_chat(char* message) {
 }
 
 void close_client() {
+  if (fd != NULL) {
+    close(fd);
+  }
+  else {
+    printf("You are not connected to a chat session.\n");
+  }
+  // TODO
   printf("Not yet implemented\n");
 }
 
 void exit_client() {
-  printf("Not yet implemented\n");
+  close(fd);
+  exit(EXIT_SUCCESS);
 }
 
 

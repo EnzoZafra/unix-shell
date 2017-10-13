@@ -21,7 +21,7 @@ int open_chat(char* username);
 void list_logged();
 void add_receipient();
 void send_chat(char* message);
-void close_client();
+void close_client(int fd);
 void exit_client();
 
 #endif
