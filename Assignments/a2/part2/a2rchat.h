@@ -20,9 +20,9 @@ typedef enum {
   E_USG = 3,
   E_NEGATIVE = 4,
   E_FIFO = 5,
-  E_NO_FD = 6,
-  E_WAIT_FAIL = 7,
-  E_CLKTCK = 8
+  E_WRITE_IN = 6,
+  E_POLL = 7,
+  E_WRITE_OUT = 8
 } error_t;
 
 void print_error(int errorcode);

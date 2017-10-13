@@ -61,7 +61,11 @@ void print_error(int errorcode) {
       fprintf(stderr, "failed to make FIFOs. Please delete all "
                       "FIFOs with the following command:\nfind . -type p -delete\n");
     case 6:
-      fprintf(stderr, "failed to open FIFO\n");
+      fprintf(stderr, "failed to write to inFIFO\n");
+    case 7:
+      fprintf(stderr, "error when polling file descriptors\n");
+    case 8:
+      fprintf(stderr, "failed to write to outFIFO\n");
   }
   exit(EXIT_FAILURE);
 }

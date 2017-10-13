@@ -86,7 +86,7 @@ int open_chat(char* username) {
     file_desc = open(infifo, O_WRONLY | O_NONBLOCK);
 
     if (lockf(file_desc, F_TEST, 0) == -1) {
-      printf("errno: %d\n", errno);
+      printf("errno: %d\n", errno); // TESTING
       close(file_desc);
     }
     else {
@@ -95,10 +95,15 @@ int open_chat(char* username) {
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
         // Write username, command, fifo number to the fifo so server knows we connected
-        snprintf(outmsg, sizeof(outmsg), "%s %s %d", username, "open", i);
+        snprintf(outmsg, sizeof(outmsg), "%s, %s, %d,", username, "open", i);
 
-        //TODO errorcheck
-        write(file_desc, outmsg, sizeof(outmsg));
+        if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
+          printf("failed to write to infifo!! \n");  // Testing
+          /* print_error(E_WRITE_IN); */
+        }
+        else {
+          printf("wrote %s to file_desc: %i\n", outmsg, file_desc); // Testing
+        }
         close(file_desc);
 
         return file_desc;
