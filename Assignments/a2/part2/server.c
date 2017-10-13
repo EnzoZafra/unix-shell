@@ -39,15 +39,6 @@ void start_server(char* baseName, int nclient) {
   timeout = 2000;
 
   while (1) {
-    /* for (int i = 1; i <= nclient; i++) { */
-    /*   memset(infifo, 0, sizeof infifo); */
-    /*   snprintf(infifo, sizeof infifo, "%s-%d.in", baseName, i); */
-    /*   file_desc = open(infifo, O_RDONLY | O_NONBLOCK); */
-
-    /*   fds[i].fd = file_desc; */
-    /*   fds[i].events = POLLIN; */
-    /*   fds[i].revents = 0; */
-    /* } */
     rval = poll(fds, nclient, timeout);
   }
 }
