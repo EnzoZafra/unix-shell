@@ -33,45 +33,38 @@ void start_client(char* baseName) {
   baseFifoName = baseName;
   printf("Chat client begins\n");
 
+  // For now, client does not need to multiplex. Just echoing from server
   // Add STDIN file descriptor to array
-  out_fds[0].fd = STDIN_FILENO;
-  out_fds[0].events = POLLIN;
-  out_fds[0].revents = 0;
+  /* out_fds[0].fd = STDIN_FILENO; */
+  /* out_fds[0].events = POLLIN; */
+  /* out_fds[0].revents = 0; */
 
   timeout = 0;
 
   while(1) {
     printf("a2chat_client: ");
 
-    /* rval = poll(out_fds, 2, timeout); */
-    /* if (rval == -1) { */
-    /*   print_error(E_POLL); */
-    /* } */
-    /* else if (rval != 0) { */
-    /*   for (int j = 0; j < numfds; j++) { */
-    /*     if(out_fds[j].revents & POLLIN) { */
-    /*       // Clear buffer */
-    /*       memset(buf, 0, sizeof(buf)); */
-    /*       if (read(out_fds[j].fd, buf, MAX_BUF) > 0) { */
-    /*         printf("received: %s\n", buf); // Testing */
-    /*         command = strtok(buf, "\n"); */
-    /*         printf("command: %s\n", command); // Testing */
-    /*         // STDIN */
-    /*         if (j == 0) { */
-    /*           parse_input(command); */
-    /*         } */
-    /*         // Server message */
-    /*         else { */
-    /*           printf("%s\n", command); */
-    /*         } */
-    /*       } */
-    /*     } */
-    /*   } */
-    /* } */
-
     if (!(fgets(buf, sizeof(buf), stdin) == NULL || strcmp(&buf[0], "\n") == 0)) {
       command = strtok(buf, " \n");
       parse_input(command);
+
+      // Get server response -- BLOCKING? issues with poll as a client..
+      rval = poll(out_fds, numfds, timeout);
+      if (rval == -1) {
+        print_error(E_POLL);
+      }
+      else if (rval != 0) {
+        for (int j = 0; j < numfds; j++) {
+          if(out_fds[j].revents & POLLIN) {
+            // Clear buffer
+            memset(buf, 0, sizeof(buf));
+            if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
+              // Print serve reponse
+              printf("%s\n", buf);
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -133,8 +126,8 @@ int open_chat(char* username) {
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
         // Listen to outFIFO
-        int outfd = open(outfifo, O_RDONLY | O_NONBLOCK);
         snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseFifoName, i);
+        int outfd = open(outfifo, O_RDONLY | O_NONBLOCK);
         out_fds[1].fd = outfd;
         out_fds[1].events = POLLIN;
         out_fds[1].revents = 0;
@@ -144,9 +137,6 @@ int open_chat(char* username) {
 
         if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
           print_error(E_WRITE_IN);
-        }
-        else {
-          printf("wrote %s to file_desc: %i\n", outmsg, file_desc); // Testing
         }
 
         return file_desc;
@@ -173,24 +163,28 @@ void send_chat(char* message) {
 
 void close_client() {
   char outmsg[MAX_OUT_LINE];
+
+  snprintf(outmsg, sizeof(outmsg), "close|");
+  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_IN);
+  }
+
   if (fd != -1) {
     close(fd);
   }
   else {
     printf("You are not connected to a chat session.\n");
   }
-  // TODO: write more info?
-  // write command to the pipe
-  snprintf(outmsg, sizeof(outmsg), "close");
-  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_IN);
-  }
-  else {
-    printf("wrote %s to file_desc: %i\n", outmsg, fd); // Testing
-  }
 }
 
 void exit_client() {
+  char outmsg[MAX_OUT_LINE];
+
+  snprintf(outmsg, sizeof(outmsg), "exit|");
+  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_IN);
+  }
+
   close(fd);
   exit(EXIT_SUCCESS);
 }

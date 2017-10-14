@@ -138,7 +138,7 @@ int server_open(int pipenumber, char* username) {
 
   char *outfifo = connections[pipenumber-1].outfifo;
 
-  file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
+  file_desc = open(outfifo, O_RDWR | O_NONBLOCK);
 
   if (lockf(file_desc, F_TEST, 0) == -1) {
     close(file_desc);
@@ -153,7 +153,7 @@ int server_open(int pipenumber, char* username) {
 
       memset(msg_out, 0, sizeof(msg_out));
       // Write server msg to fifo
-      snprintf(msg_out, sizeof(msg_out), "[server] User `%s\n` connected on FIFO %d\n",
+      snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
                 username, pipenumber);
 
       if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
