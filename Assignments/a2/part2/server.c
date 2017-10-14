@@ -84,6 +84,7 @@ void start_server(char* baseName, int nclient) {
             if (j == 0) {
               // Server "exit" command from STDIN terminates server
               if (strcmp(cmd, "exit") == 0) {
+                close_allfd(in_fds, NMAX + 1);
                 free(connections);
                 exit(EXIT_SUCCESS);
               }
@@ -105,7 +106,11 @@ void start_server(char* baseName, int nclient) {
 void parse_cmd(char* buf, int pipenumber) {
   char* cmd = strtok(buf, "|\n");
   if (strcmp(cmd, "open") == 0) {
-    char* username = strtok(NULL, "|\n");
+    char* username = strtok(NULL, "| \n");
+    if (username == NULL) {
+      printf("username not found. Please try again");
+      return;
+    }
     server_open(pipenumber, username);
   }
   else if (strcmp(cmd, "who") == 0) {
@@ -140,6 +145,7 @@ int server_open(int pipenumber, char* username) {
 
   if (lockf(file_desc, F_TEST, 0) == -1) {
     close(file_desc);
+    printf("couldn't open outfifo: %s\n", outfifo);
     print_error(E_CONN_OUTFIFO);
   }
   else {
@@ -238,5 +244,12 @@ void createFIFOs(char* baseName, int nclient) {
       // leave below commented if you dont want to exit
       /* print_error(E_FIFO); */
     }
+  }
+}
+
+void close_allfd(struct pollfd in_fds[], int len) {
+  for (int i = 1; i < len; i++) {
+    close(in_fds[i].fd);
+    close(connections[i-1].fd);
   }
 }

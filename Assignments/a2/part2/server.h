@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <poll.h>
 
 #define MAX_NAME 30
 
@@ -31,4 +32,5 @@ void server_receive_msg(int pipenumber, char* msg);
 void server_close_client(int pipenumber);
 void server_exit_client(int pipenumber);
 void createFIFOs(char* baseName, int nclient);
+void close_allfd(struct pollfd in_fds[], int len);
 #endif

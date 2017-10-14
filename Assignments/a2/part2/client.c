@@ -24,6 +24,7 @@ char* baseFifoName;
 int fd = -1;
 struct pollfd out_fds[NMAX];
 int numfds = 2;
+int universal_timeout = 1000;
 
 void start_client(char* baseName) {
   // One for outFIFO, one for STDIN

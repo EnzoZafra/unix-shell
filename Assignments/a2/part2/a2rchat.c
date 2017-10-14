@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include "a2rchat.h"
 #include "client.h"
@@ -61,15 +62,15 @@ void print_error(int errorcode) {
       fprintf(stderr, "failed to make FIFOs. Please delete all "
                       "FIFOs with the following command:\nfind . -type p -delete\n");
     case 6:
-      fprintf(stderr, "failed to write to inFIFO\n");
+      fprintf(stderr, "failed to write to inFIFO! errno: %i\n", errno);
     case 7:
-      fprintf(stderr, "error when polling file descriptors\n");
+      fprintf(stderr, "error when polling file descriptors. errno: %i\n", errno);
     case 8:
-      fprintf(stderr, "failed to write to outFIFO\n");
+      fprintf(stderr, "failed to write to outFIFO. errno: %i\n", errno);
     case 9:
-      fprintf(stderr, "failed to write read FIFO\n");
+      fprintf(stderr, "failed to write read FIFO. errno: %i\n", errno);
     case 10:
-      fprintf(stderr, "failed to connect to corresponding outFIFO\n");
+      fprintf(stderr, "failed to connect to corresponding outFIFO. errno: %i\n", errno);
   }
   exit(EXIT_FAILURE);
 }
