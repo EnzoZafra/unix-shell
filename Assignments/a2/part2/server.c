@@ -125,10 +125,10 @@ void parse_cmd(char* buf, int pipenumber) {
     server_receive_msg();
   }
   else if (strcmp(cmd, "close") == 0) {
-    server_close_client();
+    server_close_client(pipenumber);
   }
   else if (strcmp(cmd, "exit") == 0) {
-    server_exit_client();
+    server_exit_client(pipenumber);
   }
 }
 
@@ -181,12 +181,28 @@ void server_receive_msg() {
   printf("Not implemented yet\n");
 }
 
-void server_close_client() {
-  //TODO:
+void server_close_client(int pipenumber) {
+  char msg_out[MAX_BUF];
+  int index = pipenumber-1;
 
+  int fd = connections[index].fd;
+  memset(msg_out, 0, sizeof(msg_out));
+  // Write server msg to fifo
+  snprintf(msg_out, sizeof(msg_out), "[server] done\n");
+
+  if(write(fd, msg_out, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_OUT);
+  }
+
+  lockf(fd, F_ULOCK, 0);
+  close(fd);
+  // Successfully closed and unlocked fifo
+  connections[index].connected = false;
+  memset(connections[index].username, 0, sizeof(connections[index]));
+  connections[index].fd = -1;
 }
 
-void server_exit_client() {
+void server_exit_client(int pipenumber) {
   //TODO:
   printf("Not implemented yet\n");
 }

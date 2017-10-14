@@ -59,7 +59,7 @@ void start_client(char* baseName) {
             // Clear buffer
             memset(buf, 0, sizeof(buf));
             if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
-              // Print serve reponse
+              // Print server reponse
               printf("%s\n", buf);
             }
           }
@@ -163,14 +163,26 @@ void send_chat(char* message) {
 
 void close_client() {
   char outmsg[MAX_OUT_LINE];
+  char buf[MAX_OUT_LINE];
+  char *response;
 
   snprintf(outmsg, sizeof(outmsg), "close|");
-  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+  if(write(out_fds[1].fd, outmsg, MAX_OUT_LINE) == -1) {
     print_error(E_WRITE_IN);
   }
 
+  // Read once for server reply and close
   if (fd != -1) {
-    close(fd);
+    if (read(fd, buf, MAX_OUT_LINE) > 0) {
+      response = strtok(buf, "\n");
+      printf("%s\n", response);
+      // Close out fifo
+      close(out_fds[1].fd);
+      out_fds[1].fd = -1;
+      // Close and unlock infifo
+      lockf(fd, F_ULOCK, 0);
+      close(fd);
+    }
   }
   else {
     printf("You are not connected to a chat session.\n");

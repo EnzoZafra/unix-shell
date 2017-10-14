@@ -28,7 +28,7 @@ int server_open(int pipenumber, char* username);
 void server_list_logged();
 void server_add_receipient();
 void server_receive_msg();
-void server_close_client();
-void server_exit_client();
+void server_close_client(int pipenumber);
+void server_exit_client(int pipenumber);
 void createFIFOs(char* baseName, int nclient);
 #endif
