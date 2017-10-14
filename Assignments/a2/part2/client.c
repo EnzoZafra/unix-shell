@@ -85,7 +85,7 @@ void parse_input(char* input) {
       fd = open_chat(username);
     }
     else {
-      printf("usage: open [username]");
+      printf("usage: open [username]\n");
     }
   }
   else if (strcmp(input, "who") == 0) {
@@ -114,8 +114,8 @@ void parse_input(char* input) {
 }
 
 int open_chat(char* username) {
-  char infifo[MAX_FIFO_NAME];
-  char outfifo[MAX_FIFO_NAME+1];
+  char infifo[MAX_NAME];
+  char outfifo[MAX_NAME+1];
   char outmsg[MAX_OUT_LINE];
   int file_desc;
 

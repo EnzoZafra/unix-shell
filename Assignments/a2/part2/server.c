@@ -20,17 +20,18 @@
 #include "server.h"
 
 char* baseFifoName;
-struct conn;
-struct conn connections[NMAX];
+t_conn* connections;
 
 void start_server(char* baseName, int nclient) {
   // Add one for stdin
   struct pollfd in_fds[NMAX + 1];
-  char infifo[MAX_FIFO_NAME];
-  char outfifo[MAX_FIFO_NAME + 1];
+  char infifo[MAX_NAME];
+  char outfifo[MAX_NAME + 1];
   int file_desc, rval, timeout, len;
   char buf[MAX_OUT_LINE];
   char* cmd;
+
+  connections = malloc(NMAX * sizeof(*connections));
 
   baseFifoName = baseName;
 
@@ -46,10 +47,9 @@ void start_server(char* baseName, int nclient) {
     // Build our connections struct array
     memset(outfifo, 0, sizeof outfifo);
     snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseName, i+1);
-	printf("connections[%i].fifoname: %s\n", i, outfifo);
-    connections[i].fifoname = outfifo;
+    strcpy(connections[i].outfifo, outfifo);
+    memset(connections[i].username, 0, sizeof(connections[i].username));
     connections[i].connected = 0;
-    connections[i].username = NULL;
     connections[i].fd = -1;
 
     // Build in_fds struct array
@@ -77,13 +77,17 @@ void start_server(char* baseName, int nclient) {
           // Clear the buffer
           memset(buf, 0, sizeof(buf));
           if (read(in_fds[j].fd, buf, MAX_OUT_LINE) > 0) {
-            printf("received: %s\n", buf);
+            printf("received: %s\n", buf); // Testing
             cmd = strtok(buf, "\n");
+            if (cmd == NULL) {
+              continue;
+            }
             printf("cmd: %s\n", cmd);
             // if j == 0, this is the stdin file descriptor
             if (j == 0) {
               // Server "exit" command from STDIN terminates server
               if (strcmp(cmd, "exit") == 0) {
+                free(connections);
                 exit(EXIT_SUCCESS);
               }
             }
@@ -132,16 +136,8 @@ int server_open(int pipenumber, char* username) {
   int file_desc;
   char msg_out[MAX_BUF];
 
-  for (int i = 0; i < NMAX+1; i++) {
-	  printf("connections[%i].fifoname: %s\n", i, connections[i].fifoname);
-  }
+  char *outfifo = connections[pipenumber-1].outfifo;
 
-  // Testing uncomment later
-  /* char *outfifo = connections[pipenumber].fifoname; */
-  /* printf("outfifo: %s, pipenumber: %d, pipenumber-1: %d\n", outfifo, pipenumber, pipenumber-1); */
-
-  char outfifo[MAX_BUF];
-  snprintf(outfifo, sizeof outfifo, "lol-1.out");
   file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
 
   if (lockf(file_desc, F_TEST, 0) == -1) {
@@ -152,9 +148,8 @@ int server_open(int pipenumber, char* username) {
     if (lockf(file_desc, F_LOCK, 0) != -1) {
       // Successfully locked and connected to a FIFO
       connections[pipenumber - 1].connected = true;
-      connections[pipenumber - 1].username = username;
+      strcpy(connections[pipenumber - 1].username, username);
       connections[pipenumber - 1].fd = file_desc;
-  	  printf("TEST SUCCESS outFIFO \n"); // Testing
 
       memset(msg_out, 0, sizeof(msg_out));
       // Write server msg to fifo
@@ -198,8 +193,8 @@ void server_exit_client() {
 
 
 void createFIFOs(char* baseName, int nclient) {
-  char in_name[MAX_FIFO_NAME];
-  char out_name[MAX_FIFO_NAME + 1];
+  char in_name[MAX_NAME];
+  char out_name[MAX_NAME + 1];
 
   for (int i = 1; i <= nclient; i++) {
     snprintf(in_name, sizeof(in_name), "%s-%d.in", baseName, i);

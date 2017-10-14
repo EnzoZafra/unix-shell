@@ -13,13 +13,13 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define MAX_FIFO_NAME 30
+#define MAX_NAME 30
 
 typedef struct conn {
-   char *fifoname;
+   char outfifo[MAX_NAME + 1];
    int fd;
    bool connected;
-   char *username;
+   char username[MAX_NAME];
 } t_conn;
 
 void start_server(char* baseName, int nclient);
