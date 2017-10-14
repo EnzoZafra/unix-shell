@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <poll.h>
+#include <errno.h>
 
 #include "a2rchat.h"
 #include "client.h"
@@ -22,10 +23,10 @@
 char* baseFifoName;
 int fd = -1;
 struct pollfd out_fds[NMAX];
+int numfds = 2;
 
 void start_client(char* baseName) {
-  // One for STDIN and one for a outFIFO
-  int numfds = 2;
+  // One for outFIFO, one for STDIN
   char buf[MAX_BUF];
   char* command;
   int rval, timeout;
@@ -48,7 +49,7 @@ void start_client(char* baseName) {
       command = strtok(buf, " \n");
       parse_input(command);
 
-      // Get server response -- BLOCKING? issues with poll as a client..
+      // Get server response -- BLOCKING? issues with polling stdin as client..
       rval = poll(out_fds, numfds, timeout);
       if (rval == -1) {
         print_error(E_POLL);
@@ -121,7 +122,7 @@ int open_chat(char* username) {
       close(file_desc);
     }
     else {
-      if (lockf(file_desc, F_LOCK, 0) != -1) {
+      if (lockf(file_desc, F_LOCK, MAX_BUF) != -1) {
         // Successfully locked and connected to a FIFO
         printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
 
@@ -164,26 +165,56 @@ void send_chat(char* message) {
 void close_client() {
   char outmsg[MAX_OUT_LINE];
   char buf[MAX_OUT_LINE];
-  char *response;
 
-  snprintf(outmsg, sizeof(outmsg), "close|");
-  printf("out_fds[1].fd: %i\n", out_fds[1].fd);
-  if(write(out_fds[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_IN);
-  }
-
-  // Read once for server reply and close
   if (fd != -1) {
-    if (read(fd, buf, MAX_OUT_LINE) > 0) {
-      response = strtok(buf, "\n");
-      printf("%s\n", response);
-      // Close out fifo
-      close(out_fds[1].fd);
-      out_fds[1].fd = -1;
-      // Close and unlock infifo
-      lockf(fd, F_ULOCK, 0);
-      close(fd);
+    snprintf(outmsg, sizeof(outmsg), "close|");
+    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+      print_error(E_WRITE_IN);
     }
+
+    // Read once for server reply and close
+    memset(buf, 0, sizeof(buf));
+    int rval = poll(out_fds, numfds, 1000);
+    if (rval == -1) {
+      print_error(E_POLL);
+    }
+    else if (rval != 0) {
+      if(out_fds[1].revents & POLLIN) {
+        // Clear buffer
+        memset(buf, 0, sizeof(buf));
+        if (read(out_fds[1].fd, buf, MAX_BUF) > 0) {
+          // Print server reponse
+          printf("%s\n", buf);
+          // Close out fifo
+          close(out_fds[1].fd);
+          out_fds[1].fd = -1;
+          // Close and unlock infifo
+          if (lockf(fd, F_ULOCK, MAX_BUF) == -1) {
+            printf("fail to unlock fd errno: %i\n", errno);
+          }
+          if (close(fd) == -1) {
+            printf("fail to close fd errno: %i\n", errno);
+          }
+          fd = -1;
+        }
+      }
+    }
+    /* if (read(out_fds[1].fd, buf, MAX_OUT_LINE) != -1) { */
+    /*   printf("didnt make it here\n"); */
+      /* response = strtok(buf, "\n"); */
+      /* printf("%s\n", response); */
+      /* // Close out fifo */
+      /* close(out_fds[1].fd); */
+      /* out_fds[1].fd = -1; */
+      /* // Close and unlock infifo */
+      /* if (lockf(fd, F_ULOCK, MAX_BUF) == -1) { */
+      /*   printf("fail to unlock fd errno: %i\n", errno); */
+      /* } */
+      /* if (close(fd) == -1) { */
+      /*   printf("fail to close fd errno: %i\n", errno); */
+      /* } */
+      /* fd = -1; */
+    /* } */
   }
   else {
     printf("You are not connected to a chat session.\n");

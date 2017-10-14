@@ -65,7 +65,7 @@ void start_server(char* baseName, int nclient) {
   timeout = 0;
 
   while (1) {
-    rval = poll(in_fds, nclient, timeout);
+    rval = poll(in_fds, nclient + 1, timeout);
     if (rval == -1) {
       print_error(E_POLL);
     }
@@ -145,7 +145,7 @@ int server_open(int pipenumber, char* username) {
     print_error(E_CONN_OUTFIFO);
   }
   else {
-    if (lockf(file_desc, F_LOCK, 0) != -1) {
+    if (lockf(file_desc, F_LOCK, MAX_BUF) != -1) {
       // Successfully locked and connected to a FIFO
       connections[pipenumber - 1].connected = true;
       strcpy(connections[pipenumber - 1].username, username);
@@ -194,7 +194,7 @@ void server_close_client(int pipenumber) {
     print_error(E_WRITE_OUT);
   }
 
-  lockf(fd, F_ULOCK, 0);
+  lockf(fd, F_ULOCK, MAX_BUF);
   close(fd);
   // Successfully closed and unlocked fifo
   connections[index].connected = false;
