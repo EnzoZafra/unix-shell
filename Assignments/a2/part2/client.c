@@ -159,7 +159,12 @@ void add_receipient() {
 }
 
 void send_chat(char* message) {
-  printf("message: %s\n", message);   // Testing
+  char outmsg[MAX_OUT_LINE];
+  snprintf(outmsg, sizeof(outmsg), "<|%s\n", message);
+
+  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_IN);
+  }
 }
 
 void close_client() {
@@ -189,32 +194,12 @@ void close_client() {
           close(out_fds[1].fd);
           out_fds[1].fd = -1;
           // Close and unlock infifo
-          if (lockf(fd, F_ULOCK, MAX_BUF) == -1) {
-            printf("fail to unlock fd errno: %i\n", errno);
-          }
-          if (close(fd) == -1) {
-            printf("fail to close fd errno: %i\n", errno);
-          }
+          lockf(fd, F_ULOCK, MAX_BUF);
+          close(fd);
           fd = -1;
         }
       }
     }
-    /* if (read(out_fds[1].fd, buf, MAX_OUT_LINE) != -1) { */
-    /*   printf("didnt make it here\n"); */
-      /* response = strtok(buf, "\n"); */
-      /* printf("%s\n", response); */
-      /* // Close out fifo */
-      /* close(out_fds[1].fd); */
-      /* out_fds[1].fd = -1; */
-      /* // Close and unlock infifo */
-      /* if (lockf(fd, F_ULOCK, MAX_BUF) == -1) { */
-      /*   printf("fail to unlock fd errno: %i\n", errno); */
-      /* } */
-      /* if (close(fd) == -1) { */
-      /*   printf("fail to close fd errno: %i\n", errno); */
-      /* } */
-      /* fd = -1; */
-    /* } */
   }
   else {
     printf("You are not connected to a chat session.\n");
@@ -224,11 +209,19 @@ void close_client() {
 void exit_client() {
   char outmsg[MAX_OUT_LINE];
 
-  snprintf(outmsg, sizeof(outmsg), "exit|");
-  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_IN);
-  }
+  if (fd != -1) {
+    snprintf(outmsg, sizeof(outmsg), "exit|");
+    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+      print_error(E_WRITE_IN);
+    }
 
-  close(fd);
+    // Close out fifo
+    close(out_fds[1].fd);
+    out_fds[1].fd = -1;
+    // Close and unlock infifo
+    lockf(fd, F_ULOCK, MAX_BUF);
+    close(fd);
+    fd = -1;
+  }
   exit(EXIT_SUCCESS);
 }

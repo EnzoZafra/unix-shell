@@ -27,7 +27,7 @@ void start_server(char* baseName, int nclient) {
   struct pollfd in_fds[NMAX + 1];
   char infifo[MAX_NAME];
   char outfifo[MAX_NAME + 1];
-  int file_desc, rval, timeout, len;
+  int file_desc, rval, timeout;
   char buf[MAX_OUT_LINE];
   char* cmd;
 
@@ -60,7 +60,6 @@ void start_server(char* baseName, int nclient) {
     in_fds[i+1].fd = file_desc;
     in_fds[i+1].events = POLLIN;
     in_fds[i+1].revents = 0;
-    printf("infifo: %s ; file_desc: %i\n", infifo, in_fds[i+1].fd); // Testing
   }
   timeout = 0;
 
@@ -77,12 +76,10 @@ void start_server(char* baseName, int nclient) {
           // Clear the buffer
           memset(buf, 0, sizeof(buf));
           if (read(in_fds[j].fd, buf, MAX_OUT_LINE) > 0) {
-            printf("received: %s\n", buf); // Testing
             cmd = strtok(buf, "\n");
             if (cmd == NULL) {
               continue;
             }
-            printf("cmd: %s\n", cmd);
             // if j == 0, this is the stdin file descriptor
             if (j == 0) {
               // Server "exit" command from STDIN terminates server
@@ -122,7 +119,8 @@ void parse_cmd(char* buf, int pipenumber) {
     return;
   }
   else if (strcmp(cmd, "<") == 0) {
-    server_receive_msg();
+    char* msg = strtok(NULL, "\n");
+    server_receive_msg(pipenumber, msg);
   }
   else if (strcmp(cmd, "close") == 0) {
     server_close_client(pipenumber);
@@ -176,9 +174,20 @@ void server_add_receipient() {
   printf("Not implemented yet\n");
 }
 
-void server_receive_msg() {
-  //TODO:
-  printf("Not implemented yet\n");
+void server_receive_msg(int pipenumber, char* msg) {
+  char msg_out[MAX_BUF];
+  int index = pipenumber-1;
+
+  int fd = connections[index].fd;
+  char* username = connections[index].username;
+
+  memset(msg_out, 0, sizeof(msg_out));
+  // Write server msg to fifo
+  snprintf(msg_out, sizeof(msg_out), "[%s] %s\n", username, msg);
+
+  if(write(fd, msg_out, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_OUT);
+  }
 }
 
 void server_close_client(int pipenumber) {
@@ -203,8 +212,16 @@ void server_close_client(int pipenumber) {
 }
 
 void server_exit_client(int pipenumber) {
-  //TODO:
-  printf("Not implemented yet\n");
+  int index = pipenumber-1;
+
+  int fd = connections[index].fd;
+
+  lockf(fd, F_ULOCK, MAX_BUF);
+  close(fd);
+  // Successfully closed and unlocked fifo
+  connections[index].connected = false;
+  memset(connections[index].username, 0, sizeof(connections[index]));
+  connections[index].fd = -1;
 }
 
 
@@ -217,7 +234,9 @@ void createFIFOs(char* baseName, int nclient) {
     snprintf(out_name, sizeof(out_name), "%s-%d.out", baseName, i);
 
     if (mkfifo(in_name, S_IRWXU) != 0 || mkfifo(out_name, S_IRWXU) != 0) {
-      /* print_error(E_FIFO); */ // Testing  uncomment later
+      // Program exits w/ error when fifo already exists
+      // leave below commented if you dont want to exit
+      /* print_error(E_FIFO); */
     }
   }
 }
