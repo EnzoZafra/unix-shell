@@ -39,7 +39,7 @@ void start_client(char* baseName) {
   /* out_fds[0].events = POLLIN; */
   /* out_fds[0].revents = 0; */
 
-  timeout = 0;
+  timeout = 1000;
 
   while(1) {
     printf("a2chat_client: ");
@@ -167,6 +167,7 @@ void close_client() {
   char *response;
 
   snprintf(outmsg, sizeof(outmsg), "close|");
+  printf("out_fds[1].fd: %i\n", out_fds[1].fd);
   if(write(out_fds[1].fd, outmsg, MAX_OUT_LINE) == -1) {
     print_error(E_WRITE_IN);
   }
