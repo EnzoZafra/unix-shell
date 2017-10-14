@@ -24,7 +24,6 @@ char* baseFifoName;
 int fd = -1;
 struct pollfd out_fds[NMAX];
 int numfds = 2;
-int universal_timeout = 1000;
 
 void start_client(char* baseName) {
   // One for outFIFO, one for STDIN
@@ -41,7 +40,7 @@ void start_client(char* baseName) {
   /* out_fds[0].events = POLLIN; */
   /* out_fds[0].revents = 0; */
 
-  timeout = 1000;
+  timeout = 250;
 
   while(1) {
     printf("a2chat_client: ");
@@ -180,7 +179,7 @@ void close_client() {
 
     // Read once for server reply and close
     memset(buf, 0, sizeof(buf));
-    int rval = poll(out_fds, numfds, 1000);
+    int rval = poll(out_fds, numfds, 250);
     if (rval == -1) {
       print_error(E_POLL);
     }
