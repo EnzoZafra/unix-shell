@@ -179,7 +179,15 @@ void server_list_logged() {
 }
 
 void server_add_receipient(int pipenumber, char* receipients) {
-  //TODO:
+  int index = pipenumber - 1;
+  char* tok = strtok(receipients, " ");
+  while (tok != NULL) {
+    // Add a receiptient (tok) to the receipient list, and increment the num of receipients
+    /* strcpy(connections[index].receipients[connections[index].num_receipients - 1], tok); */
+    /* connections[index].num_receipients++; */
+    printf("tok: %s\n", tok);
+    tok = strtok(NULL, " \n");
+  }
 }
 
 void server_receive_msg(int pipenumber, char* msg) {

@@ -23,6 +23,7 @@ typedef struct conn {
   bool connected;
   char username[MAX_NAME];
   char receipients[MAX_RECEIPIENTS][MAX_NAME];
+  int num_receipients;
 } t_conn;
 
 void start_server(char* baseName, int nclient);
