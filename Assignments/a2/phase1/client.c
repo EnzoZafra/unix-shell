@@ -159,11 +159,16 @@ void add_receipient() {
 }
 
 void send_chat(char* message) {
-  char outmsg[MAX_OUT_LINE];
-  snprintf(outmsg, sizeof(outmsg), "<|%s\n", message);
+  if (fd != -1) {
+    char outmsg[MAX_OUT_LINE];
+    snprintf(outmsg, sizeof(outmsg), "<|%s\n", message);
 
-  if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_IN);
+    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+      print_error(E_WRITE_IN);
+    }
+  }
+  else {
+    printf("You are not connected to a chat session.\n");
   }
 }
 
