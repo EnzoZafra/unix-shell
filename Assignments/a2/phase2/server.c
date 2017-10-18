@@ -187,7 +187,6 @@ void server_add_receipient(int pipenumber, char* receipients) {
     // Increment num of receipients and add to the list
     connections[index].num_receipients++;
     strcpy(connections[index].receipients[connections[index].num_receipients - 1], tok);
-    printf("tok: %s\n", connections[index].receipients[connections[index].num_receipients-1]);
     tok = strtok(NULL, " \n");
   }
 }
