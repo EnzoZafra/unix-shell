@@ -144,7 +144,9 @@ int server_open(int pipenumber, char* username) {
 
   char *outfifo = connections[pipenumber-1].outfifo;
 
-  file_desc = open(outfifo, O_RDWR | O_NONBLOCK);
+  // Changed this from O_RDWR to O_WRONLY
+  // TODO: look here if there are errors
+  file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
 
   if (lockf(file_desc, F_TEST, 0) == -1) {
     close(file_desc);
@@ -182,27 +184,33 @@ void server_add_receipient(int pipenumber, char* receipients) {
   int index = pipenumber - 1;
   char* tok = strtok(receipients, " ");
   while (tok != NULL) {
-    // Add a receiptient (tok) to the receipient list, and increment the num of receipients
-    /* strcpy(connections[index].receipients[connections[index].num_receipients - 1], tok); */
-    /* connections[index].num_receipients++; */
-    printf("tok: %s\n", tok);
+    // Increment num of receipients and add to the list
+    connections[index].num_receipients++;
+    strcpy(connections[index].receipients[connections[index].num_receipients - 1], tok);
+    printf("tok: %s\n", connections[index].receipients[connections[index].num_receipients-1]);
     tok = strtok(NULL, " \n");
   }
 }
 
 void server_receive_msg(int pipenumber, char* msg) {
   char msg_out[MAX_BUF];
-  int index = pipenumber-1;
+  int index = pipenumber - 1;
 
-  int fd = connections[index].fd;
-  char* username = connections[index].username;
-
+  // Build message
   memset(msg_out, 0, sizeof(msg_out));
   // Write server msg to fifo
-  snprintf(msg_out, sizeof(msg_out), "[%s] %s\n", username, msg);
+  snprintf(msg_out, sizeof(msg_out), "[%s] %s\n", connections[index].username, msg);
 
-  if(write(fd, msg_out, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_OUT);
+  // Loop through the list of receipients
+  for (int i = 0; i < connections[index].num_receipients ; i++) {
+    char* receipient = connections[index].receipients[i];
+    for (int j = 0; j < NMAX; j++) {
+      if (strcmp(receipient, connections[j].username) == 0) {
+        if(write(connections[j].fd, msg_out, MAX_OUT_LINE) == -1) {
+          print_error(E_WRITE_OUT);
+        }
+      }
+    }
   }
 }
 
@@ -223,7 +231,7 @@ void server_close_client(int pipenumber) {
   close(fd);
   // Successfully closed and unlocked fifo
   connections[index].connected = false;
-  memset(connections[index].username, 0, sizeof(connections[index]));
+  memset(connections[index].username, 0, sizeof(connections[index].username));
   connections[index].fd = -1;
   clear_receipients(index);
 }
@@ -237,7 +245,7 @@ void server_exit_client(int pipenumber) {
   close(fd);
   // Successfully closed and unlocked fifo
   connections[index].connected = false;
-  memset(connections[index].username, 0, sizeof(connections[index]));
+  memset(connections[index].username, 0, sizeof(connections[index].username));
   connections[index].fd = -1;
 }
 
@@ -267,8 +275,7 @@ void close_allfd(struct pollfd in_fds[], int len) {
 
 // Returns true if a username is taken and false otherwise.
 bool username_taken(char* username) {
-  int length = sizeof(connections) / sizeof(connections[0]);
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < NMAX; i++) {
     if (strcmp(connections[i].username, username)==0) {
       return false;
     }
@@ -281,4 +288,5 @@ void clear_receipients(int index) {
   for(int i = 0; i < MAX_RECEIPIENTS; i++) {
     memset(connections[index].receipients[i], 0, sizeof connections[index].receipients[i]);
   }
+  connections[index].num_receipients = 0;
 }
