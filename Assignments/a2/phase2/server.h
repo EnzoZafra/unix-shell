@@ -27,14 +27,14 @@ typedef struct conn {
 } t_conn;
 
 void start_server(char* baseName, int nclient);
-void parse_cmd(char* cmd, int pipenumber);
-int server_open(int pipenumber, char* username);
-void server_list_logged();
-void server_add_receipient(int pipenumber, char* receipients);
-void server_receive_msg(int pipenumber, char* msg);
-void server_close_client(int pipenumber);
-void server_exit_client(int pipenumber);
+void parse_cmd(char* cmd, int index);
+int server_open(int index, char* username);
+void server_list_logged(int index);
+void server_add_receipient(int index, char* receipients);
+void server_receive_msg(int index, char* msg);
+void server_close_client(int index);
+void server_exit_client(int index);
 void createFIFOs(char* baseName, int nclient);
 void close_allfd(struct pollfd in_fds[], int len);
-void clear_receipients(int pipenumber);
+void clear_receipients(int index);
 #endif

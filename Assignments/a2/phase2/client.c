@@ -74,7 +74,7 @@ void parse_input(char* input) {
   char* args;
   if (strcmp(input, "open") == 0) {
     if (fd != -1) {
-      printf("please close current chat session before starting a new one.");
+      printf("please close current chat session before starting a new one.\n");
       return;
     }
     args = strtok(NULL, "\n");
@@ -158,7 +158,17 @@ int open_chat(char* username) {
 }
 
 void list_logged() {
-  printf("This command is not part of phase 1.\n");
+  if (fd != -1) {
+    char outmsg[MAX_OUT_LINE];
+    snprintf(outmsg, sizeof(outmsg), "who|\n");
+
+    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+      print_error(E_WRITE_IN);
+    }
+  }
+  else {
+    printf("You are not connected to a chat session.\n");
+  }
 }
 
 void add_receipient(char* receipients) {

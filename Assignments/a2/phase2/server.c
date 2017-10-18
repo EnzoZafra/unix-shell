@@ -107,6 +107,7 @@ void start_server(char* baseName, int nclient) {
 void parse_cmd(char* buf, int pipenumber) {
   char* args;
   char* cmd = strtok(buf, "|\n");
+  int index = pipenumber - 1;
 
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
@@ -114,35 +115,32 @@ void parse_cmd(char* buf, int pipenumber) {
       printf("username not found. Please try again");
       return;
     }
-    server_open(pipenumber, args);
+    server_open(index, args);
   }
   else if (strcmp(cmd, "who") == 0) {
-    // Not needed for phase 1
-    /* server_list_logged(); */
-    return;
+    server_list_logged(index);
   }
   else if (strcmp(cmd, "to") == 0) {
     args = strtok(NULL, "\n");
-    server_add_receipient(pipenumber, args);
-    return;
+    server_add_receipient(index, args);
   }
   else if (strcmp(cmd, "<") == 0) {
     args = strtok(NULL, "\n");
-    server_receive_msg(pipenumber, args);
+    server_receive_msg(index, args);
   }
   else if (strcmp(cmd, "close") == 0) {
-    server_close_client(pipenumber);
+    server_close_client(index);
   }
   else if (strcmp(cmd, "exit") == 0) {
-    server_exit_client(pipenumber);
+    server_exit_client(index);
   }
 }
 
-int server_open(int pipenumber, char* username) {
+int server_open(int index, char* username) {
   int file_desc;
   char msg_out[MAX_BUF];
 
-  char *outfifo = connections[pipenumber-1].outfifo;
+  char *outfifo = connections[index].outfifo;
 
   // Changed this from O_RDWR to O_WRONLY
   // TODO: look here if there are errors
@@ -156,14 +154,14 @@ int server_open(int pipenumber, char* username) {
   else {
     if (lockf(file_desc, F_LOCK, MAX_BUF) != -1) {
       // Successfully locked and connected to a FIFO
-      connections[pipenumber - 1].connected = true;
-      strcpy(connections[pipenumber - 1].username, username);
-      connections[pipenumber - 1].fd = file_desc;
+      connections[index].connected = true;
+      strcpy(connections[index].username, username);
+      connections[index].fd = file_desc;
 
       memset(msg_out, 0, sizeof(msg_out));
       // Write server msg to fifo
       snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
-                username, pipenumber);
+                username, index + 1);
 
       if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
         print_error(E_WRITE_OUT);
@@ -175,13 +173,28 @@ int server_open(int pipenumber, char* username) {
   return -1;
 }
 
-void server_list_logged() {
-  //TODO:
-  printf("Not implemented yet\n");
+void server_list_logged(int index) {
+  char msg_out[MAX_BUF];
+  char buf[MAX_BUF];
+
+  // Build message
+  memset(msg_out, 0, sizeof(msg_out));
+  // Write server msg to fifo
+  snprintf(msg_out, sizeof(msg_out), "[server] Current users:");
+  for (int i = 0; i < NMAX; i++) {
+    if (strlen(connections[i].username) != 0) {
+      memset(buf, 0, sizeof(buf));
+      snprintf(buf, sizeof(buf), " [%i] %s", i+1, connections[i].username);
+      strcat(msg_out, buf);
+    }
+  }
+  strcat(msg_out, "\n");
+  if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_OUT);
+  }
 }
 
-void server_add_receipient(int pipenumber, char* receipients) {
-  int index = pipenumber - 1;
+void server_add_receipient(int index, char* receipients) {
   char* tok = strtok(receipients, " ");
   while (tok != NULL) {
     // Increment num of receipients and add to the list
@@ -191,9 +204,8 @@ void server_add_receipient(int pipenumber, char* receipients) {
   }
 }
 
-void server_receive_msg(int pipenumber, char* msg) {
+void server_receive_msg(int index, char* msg) {
   char msg_out[MAX_BUF];
-  int index = pipenumber - 1;
 
   // Build message
   memset(msg_out, 0, sizeof(msg_out));
@@ -213,9 +225,8 @@ void server_receive_msg(int pipenumber, char* msg) {
   }
 }
 
-void server_close_client(int pipenumber) {
+void server_close_client(int index) {
   char msg_out[MAX_BUF];
-  int index = pipenumber-1;
 
   int fd = connections[index].fd;
   memset(msg_out, 0, sizeof(msg_out));
@@ -235,9 +246,7 @@ void server_close_client(int pipenumber) {
   clear_receipients(index);
 }
 
-void server_exit_client(int pipenumber) {
-  int index = pipenumber-1;
-
+void server_exit_client(int index) {
   int fd = connections[index].fd;
 
   lockf(fd, F_ULOCK, MAX_BUF);
