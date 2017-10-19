@@ -61,6 +61,7 @@ void start_client(char* baseName) {
         if(out_fds[j].revents & POLLIN) {
           // Clear buffer
           memset(buf, 0, sizeof(buf));
+          prompt_user = true;
           if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
             // stdin
             if (j == 0) {
@@ -68,7 +69,6 @@ void start_client(char* baseName) {
               if (command != NULL) {
                 parse_input(command);
               }
-              prompt_user = true;
             }
             else {
               // parse the server's message
