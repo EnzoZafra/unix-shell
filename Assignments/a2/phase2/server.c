@@ -237,24 +237,12 @@ void server_close_client(int index) {
     print_error(E_WRITE_OUT);
   }
 
-  lockf(fd, F_ULOCK, MAX_BUF);
-  close(fd);
-  // Successfully closed and unlocked fifo
-  connections[index].connected = false;
-  memset(connections[index].username, 0, sizeof(connections[index].username));
-  connections[index].fd = -1;
-  clear_receipients(index);
+  close_fifo(index, fd);
 }
 
 void server_exit_client(int index) {
   int fd = connections[index].fd;
-
-  lockf(fd, F_ULOCK, MAX_BUF);
-  close(fd);
-  // Successfully closed and unlocked fifo
-  connections[index].connected = false;
-  memset(connections[index].username, 0, sizeof(connections[index].username));
-  connections[index].fd = -1;
+  close_fifo(index, fd);
 }
 
 
@@ -281,6 +269,7 @@ void close_allfd(struct pollfd in_fds[], int len) {
   }
 }
 
+// TODO: check if username is taken
 // Returns true if a username is taken and false otherwise.
 bool username_taken(char* username) {
   for (int i = 0; i < NMAX; i++) {
@@ -297,4 +286,14 @@ void clear_receipients(int index) {
     memset(connections[index].receipients[i], 0, sizeof connections[index].receipients[i]);
   }
   connections[index].num_receipients = 0;
+}
+
+void close_fifo(int index, int fd) {
+  lockf(fd, F_ULOCK, MAX_BUF);
+  close(fd);
+  // Successfully closed and unlocked fifo
+  connections[index].connected = false;
+  memset(connections[index].username, 0, sizeof(connections[index].username));
+  connections[index].fd = -1;
+  clear_receipients(index);
 }

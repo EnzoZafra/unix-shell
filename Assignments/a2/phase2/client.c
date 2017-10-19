@@ -30,38 +30,49 @@ void start_client(char* baseName) {
   char buf[MAX_BUF];
   char* command;
   int rval, timeout;
+  bool prompt_user = true;
 
   baseFifoName = baseName;
   printf("Chat client begins\n");
 
   // For now, client does not need to multiplex. Just echoing from server
   // Add STDIN file descriptor to array
-  /* out_fds[0].fd = STDIN_FILENO; */
-  /* out_fds[0].events = POLLIN; */
-  /* out_fds[0].revents = 0; */
+  out_fds[0].fd = STDIN_FILENO;
+  out_fds[0].events = POLLIN;
+  out_fds[0].revents = 0;
 
   timeout = 250;
 
   while(1) {
-    printf("a2chat_client: ");
+    // Only print after parsing input or receiving a msg.
+    if (prompt_user) {
+      // If not printing with a new line, we have to flush the buffer
+      printf("a2chat_client: ");
+      fflush(stdout);
+      prompt_user = false;
+    }
 
-    if (!(fgets(buf, sizeof(buf), stdin) == NULL || strcmp(&buf[0], "\n") == 0)) {
-      command = strtok(buf, " \n");
-      parse_input(command);
-
-      // Get server response -- BLOCKING? issues with polling stdin as client..
-      rval = poll(out_fds, numfds, timeout);
-      if (rval == -1) {
-        print_error(E_POLL);
-      }
-      else if (rval != 0) {
-        for (int j = 0; j < numfds; j++) {
-          if(out_fds[j].revents & POLLIN) {
-            // Clear buffer
-            memset(buf, 0, sizeof(buf));
-            if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
-              // Print server reponse
-              printf("%s\n", buf);
+    rval = poll(out_fds, numfds, timeout);
+    if (rval == -1) {
+      print_error(E_POLL);
+    }
+    else if (rval != 0) {
+      for (int j = 0; j < numfds; j++) {
+        if(out_fds[j].revents & POLLIN) {
+          // Clear buffer
+          memset(buf, 0, sizeof(buf));
+          if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
+            prompt_user = true;
+            // stdin
+            if (j == 0) {
+              command = strtok(buf, " \n");
+              if (command != NULL) {
+                parse_input(command);
+              }
+            }
+            else {
+              // Print message from server
+              printf("\n%s", buf);
             }
           }
         }
@@ -221,7 +232,7 @@ void close_client() {
         memset(buf, 0, sizeof(buf));
         if (read(out_fds[1].fd, buf, MAX_BUF) > 0) {
           // Print server reponse
-          printf("%s\n", buf);
+          printf("%s", buf);
           // Close out fifo
           close(out_fds[1].fd);
           out_fds[1].fd = -1;

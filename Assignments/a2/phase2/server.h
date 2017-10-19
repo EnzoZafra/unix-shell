@@ -37,4 +37,5 @@ void server_exit_client(int index);
 void createFIFOs(char* baseName, int nclient);
 void close_allfd(struct pollfd in_fds[], int len);
 void clear_receipients(int index);
+void close_fifo(int index, int fd);
 #endif
