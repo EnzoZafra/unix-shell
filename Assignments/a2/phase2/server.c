@@ -142,8 +142,6 @@ int server_open(int index, char* username) {
 
   char *outfifo = connections[index].outfifo;
 
-  // Changed this from O_RDWR to O_WRONLY
-  // TODO: look here if there are errors
   file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
 
   if (lockf(file_desc, F_TEST, 0) == -1) {
@@ -153,21 +151,30 @@ int server_open(int index, char* username) {
   }
   else {
     if (lockf(file_desc, F_LOCK, MAX_BUF) != -1) {
-      // Successfully locked and connected to a FIFO
-      connections[index].connected = true;
-      strcpy(connections[index].username, username);
-      connections[index].fd = file_desc;
-
       memset(msg_out, 0, sizeof(msg_out));
-      // Write server msg to fifo
-      snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
-                username, index + 1);
 
-      if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
-        print_error(E_WRITE_OUT);
+      if (username_taken(username)) {
+        snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
+        if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
+          print_error(E_WRITE_OUT);
+        }
+        close(file_desc);
       }
+      else {
+        // Successfully locked and connected to a FIFO
+        connections[index].connected = true;
+        strcpy(connections[index].username, username);
+        connections[index].fd = file_desc;
 
-      return file_desc;
+        // Write server msg to fifo
+        snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
+                  username, index + 1);
+
+        if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
+          print_error(E_WRITE_OUT);
+        }
+        return file_desc;
+      }
     }
   }
   return -1;
@@ -269,15 +276,13 @@ void close_allfd(struct pollfd in_fds[], int len) {
   }
 }
 
-// TODO: check if username is taken
-// Returns true if a username is taken and false otherwise.
 bool username_taken(char* username) {
   for (int i = 0; i < NMAX; i++) {
     if (strcmp(connections[i].username, username)==0) {
-      return false;
+      return true;
     }
   }
-  return true;
+  return false;
 }
 
 // Clear receipient list for a connection

@@ -38,4 +38,5 @@ void createFIFOs(char* baseName, int nclient);
 void close_allfd(struct pollfd in_fds[], int len);
 void clear_receipients(int index);
 void close_fifo(int index, int fd);
+bool username_taken(char* username);
 #endif

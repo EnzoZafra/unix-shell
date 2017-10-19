@@ -62,17 +62,17 @@ void start_client(char* baseName) {
           // Clear buffer
           memset(buf, 0, sizeof(buf));
           if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
-            prompt_user = true;
             // stdin
             if (j == 0) {
               command = strtok(buf, " \n");
               if (command != NULL) {
                 parse_input(command);
               }
+              prompt_user = true;
             }
             else {
-              // Print message from server
-              printf("\n%s", buf);
+              // parse the server's message
+              parse_server_msg(buf);
             }
           }
         }
@@ -233,13 +233,9 @@ void close_client() {
         if (read(out_fds[1].fd, buf, MAX_BUF) > 0) {
           // Print server reponse
           printf("%s", buf);
-          // Close out fifo
-          close(out_fds[1].fd);
-          out_fds[1].fd = -1;
-          // Close and unlock infifo
-          lockf(fd, F_ULOCK, MAX_BUF);
-          close(fd);
-          fd = -1;
+
+          // Close in and out fifo
+          close_io_fifo();
         }
       }
     }
@@ -258,13 +254,25 @@ void exit_client() {
       print_error(E_WRITE_IN);
     }
 
-    // Close out fifo
-    close(out_fds[1].fd);
-    out_fds[1].fd = -1;
-    // Close and unlock infifo
-    lockf(fd, F_ULOCK, MAX_BUF);
-    close(fd);
-    fd = -1;
+    // Close in and out fifos
+    close_io_fifo();
   }
   exit(EXIT_SUCCESS);
+}
+
+void close_io_fifo() {
+  // Close out fifo
+  close(out_fds[1].fd);
+  out_fds[1].fd = -1;
+  // Close and unlock infifo
+  lockf(fd, F_ULOCK, MAX_BUF);
+  close(fd);
+  fd = -1;
+}
+
+void parse_server_msg(char* buf) {
+  if (strncmp(buf, "[server] Error:", 15) == 0) {
+    close_io_fifo();
+  }
+  printf("\n%s", buf);
 }

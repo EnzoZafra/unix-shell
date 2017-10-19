@@ -23,5 +23,7 @@ void add_receipient(char* receipients);
 void send_chat(char* message);
 void close_client();
 void exit_client();
+void close_io_fifo();
+void parse_server_msg(char* buf);
 
 #endif
