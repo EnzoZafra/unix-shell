@@ -13,5 +13,5 @@ clean:
 	$(RM) -rf $(TARGET) client.o server.o $(TARGET).dSYM submit.tar
 
 tar:
-	tar -zcvf submit.tar $(TARGET).c a2chat.h client.c client.h server.c server.h Makefile README
+	tar -zcvf submit.tar $(TARGET).c a2chat.h client.c client.h server.c server.h Makefile report.pdf
 
