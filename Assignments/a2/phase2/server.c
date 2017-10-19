@@ -166,13 +166,14 @@ int server_open(int index, char* username) {
         strcpy(connections[index].username, username);
         connections[index].fd = file_desc;
 
-        // Write server msg to fifo
-        snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
-                  username, index + 1);
+        /* // Write server msg to fifo */
+        /* snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n", */
+        /*           username, index + 1); */
 
-        if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
-          print_error(E_WRITE_OUT);
-        }
+        /* if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) { */
+        /*   print_error(E_WRITE_OUT); */
+        /* } */
+        write_connected_msg(username, index);
         return file_desc;
       }
     }
@@ -301,4 +302,21 @@ void close_fifo(int index, int fd) {
   memset(connections[index].username, 0, sizeof(connections[index].username));
   connections[index].fd = -1;
   clear_receipients(index);
+}
+
+void write_connected_msg(char* username, int index) {
+  char msg_out[MAX_BUF];
+  memset(msg_out, 0, sizeof msg_out);
+
+  // Write server msg to fifo
+  snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
+            username, index + 1);
+
+  for (int i = 0; i < NMAX; i++) {
+    if (connections[i].connected) {
+      if(write(connections[i].fd, msg_out, MAX_OUT_LINE) == -1) {
+        print_error(E_WRITE_OUT);
+      }
+    }
+  }
 }

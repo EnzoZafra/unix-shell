@@ -39,4 +39,6 @@ void close_allfd(struct pollfd in_fds[], int len);
 void clear_receipients(int index);
 void close_fifo(int index, int fd);
 bool username_taken(char* username);
+void write_connected_msg(char* username, int index);
+
 #endif
