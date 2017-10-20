@@ -25,6 +25,10 @@ int fd = -1;
 struct pollfd out_fds[NMAX];
 int numfds = 2;
 
+
+/* Main function for the client, contains the loop which polls the fifos
+   and prompts the user for input
+ */
 void start_client(char* baseName) {
   // One for outFIFO, one for STDIN
   char buf[MAX_BUF];
@@ -81,6 +85,7 @@ void start_client(char* baseName) {
   }
 }
 
+/* Parses the user input and runs a command depending on the input */
 void parse_input(char* input) {
   char* args;
   if (strcmp(input, "open") == 0) {
@@ -125,6 +130,7 @@ void parse_input(char* input) {
   }
 }
 
+/* Opens the inFifos and outFifos when a user opens a chat session */
 int open_chat(char* username) {
   char infifo[MAX_NAME];
   char outfifo[MAX_NAME+1];
@@ -168,6 +174,7 @@ int open_chat(char* username) {
   return -1;
 }
 
+/* Tells the server that the client wants a list of logged users */
 void list_logged() {
   if (fd != -1) {
     char outmsg[MAX_OUT_LINE];
@@ -182,6 +189,7 @@ void list_logged() {
   }
 }
 
+/* Tells the server that the client wants to add a recipient to its list */
 void add_receipient(char* receipients) {
   if (fd != -1) {
     char outmsg[MAX_OUT_LINE];
@@ -196,6 +204,7 @@ void add_receipient(char* receipients) {
   }
 }
 
+/* Sends a chat message to all of the clients recipients */
 void send_chat(char* message) {
   if (fd != -1) {
     char outmsg[MAX_OUT_LINE];
@@ -210,6 +219,7 @@ void send_chat(char* message) {
   }
 }
 
+/* Closes a chat session for the user */
 void close_client() {
   char outmsg[MAX_OUT_LINE];
   char buf[MAX_OUT_LINE];
@@ -245,6 +255,7 @@ void close_client() {
   }
 }
 
+/* Exits the client program */
 void exit_client() {
   char outmsg[MAX_OUT_LINE];
 
@@ -260,6 +271,7 @@ void exit_client() {
   exit(EXIT_SUCCESS);
 }
 
+/* Helper function to close both inFD and out FD */
 void close_io_fifo() {
   // Close out fifo
   close(out_fds[1].fd);
@@ -270,6 +282,7 @@ void close_io_fifo() {
   fd = -1;
 }
 
+/* Helper function for parsing the server message */
 void parse_server_msg(char* buf) {
   if (strncmp(buf, "[server] Error:", 15) == 0) {
     close_io_fifo();

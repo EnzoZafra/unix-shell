@@ -22,6 +22,9 @@
 char* baseFifoName;
 t_conn* connections;
 
+/* Main function for the server, contains the parsing of the client messages by
+   polling the inFIFOs.
+*/
 void start_server(char* baseName, int nclient) {
   // Add one for stdin
   struct pollfd in_fds[NMAX + 1];
@@ -104,6 +107,7 @@ void start_server(char* baseName, int nclient) {
   }
 }
 
+/* Parses the command sent by the client */
 void parse_cmd(char* buf, int pipenumber) {
   char* args;
   char* cmd = strtok(buf, "|\n");
@@ -136,6 +140,7 @@ void parse_cmd(char* buf, int pipenumber) {
   }
 }
 
+/* Server opens a chat session for a user. */
 int server_open(int index, char* username) {
   int file_desc;
   char msg_out[MAX_BUF];
@@ -181,6 +186,7 @@ int server_open(int index, char* username) {
   return -1;
 }
 
+/* Server returns a list of logged users to the client */
 void server_list_logged(int index) {
   char msg_out[MAX_BUF];
   char buf[MAX_BUF];
@@ -233,6 +239,7 @@ void server_receive_msg(int index, char* msg) {
   }
 }
 
+/* Server closes the chat session that is initialized by the client */
 void server_close_client(int index) {
   char msg_out[MAX_BUF];
 
@@ -270,6 +277,7 @@ void createFIFOs(char* baseName, int nclient) {
   }
 }
 
+/* Helper function to close all fds that is connected */
 void close_allfd(struct pollfd in_fds[], int len) {
   for (int i = 1; i < len; i++) {
     close(in_fds[i].fd);
@@ -277,6 +285,7 @@ void close_allfd(struct pollfd in_fds[], int len) {
   }
 }
 
+/* Helper function that checks if a username supplied by the client is taken */
 bool username_taken(char* username) {
   for (int i = 0; i < NMAX; i++) {
     if (strcmp(connections[i].username, username)==0) {
@@ -294,6 +303,7 @@ void clear_receipients(int index) {
   connections[index].num_receipients = 0;
 }
 
+/* Helper function to close all the fifos */
 void close_fifo(int index, int fd) {
   lockf(fd, F_ULOCK, MAX_BUF);
   close(fd);
@@ -304,6 +314,7 @@ void close_fifo(int index, int fd) {
   clear_receipients(index);
 }
 
+/* Writes a message to all of the connected users */
 void write_connected_msg(char* username, int index) {
   char msg_out[MAX_BUF];
   memset(msg_out, 0, sizeof msg_out);
