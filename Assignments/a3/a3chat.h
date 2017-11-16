@@ -19,12 +19,14 @@ typedef enum {
   E_USG_C = 2,
   E_USG = 3,
   E_NEGATIVE = 4,
-  E_FIFO = 5,
+  E_SOCKET = 5,
   E_WRITE_IN = 6,
   E_POLL = 7,
   E_WRITE_OUT = 8,
   E_READ = 9,
-  E_CONN_OUTFIFO = 10
+  E_FAIL_BIND = 10,
+  E_INVALID_PORTNUM = 11,
+  E_OPENSOCK = 12
 } error_t;
 
 void print_error(int errorcode);

@@ -18,7 +18,6 @@
 #define MAX_RECEIPIENTS 10
 
 typedef struct conn {
-  char outfifo[MAX_NAME + 1];
   int fd;
   bool connected;
   char username[MAX_NAME];
@@ -26,7 +25,7 @@ typedef struct conn {
   int num_receipients;
 } t_conn;
 
-void start_server(char* baseName, int nclient);
+void start_server(int portnumber, int nclient);
 void parse_cmd(char* cmd, int index);
 int server_open(int index, char* username);
 void server_list_logged(int index);
@@ -37,7 +36,7 @@ void server_exit_client(int index);
 void createFIFOs(char* baseName, int nclient);
 void close_allfd(struct pollfd in_fds[], int len);
 void clear_receipients(int index);
-void close_fifo(int index, int fd);
+void close_connection(int index);
 bool username_taken(char* username);
 void write_connected_msg(char* username, int index);
 

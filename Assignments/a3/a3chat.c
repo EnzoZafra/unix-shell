@@ -21,7 +21,10 @@ int main(int argc, char *argv[]) {
   }
 
   char* option = argv[1];
-  char* portNum = argv[2];
+  int portNum = atoi(argv[2]);
+  if (portNum <= 0) {
+    print_error(E_INVALID_PORTNUM);
+  }
 
   if (strncmp(option, "-s", 2) == 0) {
     if (argc != 4) {
@@ -60,8 +63,7 @@ void print_error(int errorcode) {
     case 4:
       fprintf(stderr, "client must be an integer in the range 0 < nclient <= 5\n");
     case 5:
-      fprintf(stderr, "failed to make FIFOs. Please delete all "
-                      "FIFOs with the following command:\nfind . -type p -delete\n");
+      fprintf(stderr, "failed to create socket\n");
     case 6:
       fprintf(stderr, "failed to write to inFIFO! errno: %i\n", errno);
     case 7:
@@ -71,7 +73,11 @@ void print_error(int errorcode) {
     case 9:
       fprintf(stderr, "failed to write read FIFO. errno: %i\n", errno);
     case 10:
-      fprintf(stderr, "failed to connect to corresponding outFIFO. errno: %i\n", errno);
+      fprintf(stderr, "failed to bind server managing socket\n");
+    case 11:
+      fprintf(stderr, "invalid portnumber\n");
+    case 12:
+      fprintf(stderr, "failed to open FILE for client socket\n");
   }
   exit(EXIT_FAILURE);
 }

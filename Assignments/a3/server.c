@@ -14,86 +14,126 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "a3chat.h"
 #include "client.h"
 #include "server.h"
 
-char* baseFifoName;
 t_conn* connections;
 
 /* Main function for the server, contains the parsing of the client messages by
    polling the inFIFOs.
 */
-void start_server(char* baseName, int nclient) {
-  // Add one for stdin
-  struct pollfd in_fds[NMAX + 1];
+void start_server(int portnumber, int nclient) {
+  // Add one for stdin and one for managing socket
+  struct pollfd pfd[nclient + 2];
+  int newsock[nclient + 2];
   char infifo[MAX_NAME];
   char outfifo[MAX_NAME + 1];
-  int file_desc, rval, timeout;
+  int file_desc, rval, timeout, numpolls, fromlen, conn_idx;
   char buf[MAX_OUT_LINE];
   char* cmd;
+  struct sockaddr_in sockIN, from;
+  FILE* sfp[nclient + 2];
 
-  connections = malloc(NMAX * sizeof(*connections));
+  connections = malloc(nclient * sizeof(*connections));
 
-  baseFifoName = baseName;
-
-  createFIFOs(baseName, nclient);
   printf("Chat server begins [number of clients = %d]\n", nclient);
 
+  // Create managing socket
+  int manage_sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (manage_sock < 0) {
+    print_error(E_SOCKET);
+    exit(1);
+  }
+
+  // bind the managing socket to a name
+  sockIN.sin_family= AF_INET;
+  sockIN.sin_addr.s_addr= htonl(INADDR_ANY);
+  sockIN.sin_port= htons(portnumber);
+
+  if (bind(manage_sock, (struct sockaddr *) &sockIN, sizeof sockIN) < 0) {
+    print_error(E_FAIL_BIND);
+    exit (1);
+  }
+
+  // indicate how many connection requests can be queued
+  listen (manage_sock, nclient);
+
+  // Add master socket in nonblocking poll array
+  pfd[0].fd = manage_sock;
+  pfd[0].events = POLLIN;
+  pfd[0].revents = 0;
+
   // Add STDIN file descriptor to our array
-  in_fds[0].fd = STDIN_FILENO;
-  in_fds[0].events = POLLIN;
-  in_fds[0].revents = 0;
+  pfd[1].fd = STDIN_FILENO;
+  pfd[1].events = POLLIN;
+  pfd[1].revents = 0;
 
   for (int i = 0; i < nclient; i++) {
     // Build our connections struct array
-    memset(outfifo, 0, sizeof outfifo);
-    snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseName, i+1);
-    strcpy(connections[i].outfifo, outfifo);
     memset(connections[i].username, 0, sizeof(connections[i].username));
     connections[i].connected = 0;
     connections[i].fd = -1;
     clear_receipients(i);
-
-    // Build in_fds struct array
-    memset(infifo, 0, sizeof infifo);
-    snprintf(infifo, sizeof infifo, "%s-%d.in", baseName, i+1);
-    file_desc = open(infifo, O_RDONLY | O_NONBLOCK);
-
-    in_fds[i+1].fd = file_desc;
-    in_fds[i+1].events = POLLIN;
-    in_fds[i+1].revents = 0;
   }
+
   timeout = 0;
+  numpolls = 2;
 
   while (1) {
-    rval = poll(in_fds, nclient + 1, timeout);
+    rval= poll (pfd, numpolls, timeout);
     if (rval == -1) {
       print_error(E_POLL);
     }
-    // If there is a return value in poll then a pipe has data
     else if (rval != 0) {
+
+      // check managing socket
+      if ((numpolls < nclient) && (pfd[0].revents & POLLIN)) {
+
+        // accept new connection
+        fromlen = sizeof (from);
+        newsock[numpolls]= accept(manage_sock, (struct sockaddr *) &from, &fromlen);
+
+        /* we may also want to perform STREAM I/O */
+        if ((sfp[numpolls] = fdopen(newsock[numpolls], "r")) < 0) {
+          print_error(E_OPENSOCK);
+          exit (1);
+        }
+
+        pfd[numpolls].fd= newsock[numpolls];
+        pfd[numpolls].events= POLLIN;
+        pfd[numpolls].revents= 0;
+
+        conn_idx = numpolls - 2;
+        connections[conn_idx].connected = true;
+        connections[conn_idx].fd = newsock[numpolls];
+
+        numpolls++;
+      }
+
       // Find the fd that has data
-      for (int j = 0; j <= nclient; j++) {
-        if (in_fds[j].revents & POLLIN) {
+      for (int j = 1; j <= nclient + 1; j++) {
+        if (pfd[j].revents & POLLIN) {
           // Clear the buffer
           memset(buf, 0, sizeof(buf));
-          if (read(in_fds[j].fd, buf, MAX_OUT_LINE) > 0) {
+          if (read(pfd[j].fd, buf, MAX_OUT_LINE) > 0) {
             cmd = strtok(buf, "\n");
             if (cmd == NULL) {
               continue;
             }
-            // if j == 0, this is the stdin file descriptor
-            if (j == 0) {
+            // if j == 1, this is the stdin file descriptor
+            if (j == 1) {
               // Server "exit" command from STDIN terminates server
               if (strcmp(cmd, "exit") == 0) {
-                close_allfd(in_fds, NMAX + 1);
+                close_allfd(pfd, NMAX + 1);
                 free(connections);
                 exit(EXIT_SUCCESS);
               }
             }
-            // pipe FD
+            // a client sent a command
             else {
               parse_cmd(cmd, j);
             }
@@ -144,46 +184,22 @@ void parse_cmd(char* buf, int pipenumber) {
 int server_open(int index, char* username) {
   int file_desc;
   char msg_out[MAX_BUF];
-
-  char *outfifo = connections[index].outfifo;
-
-  file_desc = open(outfifo, O_WRONLY | O_NONBLOCK);
-
-  if (lockf(file_desc, F_TEST, 0) == -1) {
-    close(file_desc);
-    printf("couldn't open outfifo: %s\n", outfifo);
-    print_error(E_CONN_OUTFIFO);
+  if (username_taken(username)) {
+    snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
+    if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
+      print_error(E_WRITE_OUT);
+    }
+    close_connection(index);
+    return -1;
   }
   else {
-    if (lockf(file_desc, F_LOCK, MAX_BUF) != -1) {
-      memset(msg_out, 0, sizeof(msg_out));
+    // Successfully locked and connected to a FIFO
+    strcpy(connections[index].username, username);
 
-      if (username_taken(username)) {
-        snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
-        if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) {
-          print_error(E_WRITE_OUT);
-        }
-        close(file_desc);
-      }
-      else {
-        // Successfully locked and connected to a FIFO
-        connections[index].connected = true;
-        strcpy(connections[index].username, username);
-        connections[index].fd = file_desc;
-
-        /* // Write server msg to fifo */
-        /* snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n", */
-        /*           username, index + 1); */
-
-        /* if(write(file_desc, msg_out, MAX_OUT_LINE) == -1) { */
-        /*   print_error(E_WRITE_OUT); */
-        /* } */
-        write_connected_msg(username, index);
-        return file_desc;
-      }
-    }
+    /* // Write server msg to fifo */
+    write_connected_msg(username, index);
+    return connections[index].fd;
   }
-  return -1;
 }
 
 /* Server returns a list of logged users to the client */
@@ -260,27 +276,10 @@ void server_exit_client(int index) {
   close_fifo(index, fd);
 }
 
-
-void createFIFOs(char* baseName, int nclient) {
-  char in_name[MAX_NAME];
-  char out_name[MAX_NAME + 1];
-
-  for (int i = 1; i <= nclient; i++) {
-    snprintf(in_name, sizeof(in_name), "%s-%d.in", baseName, i);
-    snprintf(out_name, sizeof(out_name), "%s-%d.out", baseName, i);
-
-    if (mkfifo(in_name, S_IRWXU) != 0 || mkfifo(out_name, S_IRWXU) != 0) {
-      // Program exits w/ error when fifo already exists
-      // leave below commented if you dont want to exit
-      /* print_error(E_FIFO); */
-    }
-  }
-}
-
 /* Helper function to close all fds that is connected */
-void close_allfd(struct pollfd in_fds[], int len) {
+void close_allfd(struct pollfd pfd[], int len) {
   for (int i = 1; i < len; i++) {
-    close(in_fds[i].fd);
+    close(pfd[i].fd);
     close(connections[i-1].fd);
   }
 }
@@ -303,10 +302,9 @@ void clear_receipients(int index) {
   connections[index].num_receipients = 0;
 }
 
-/* Helper function to close all the fifos */
-void close_fifo(int index, int fd) {
-  lockf(fd, F_ULOCK, MAX_BUF);
-  close(fd);
+/* Helper function to close the connection */
+void close_connection(int index) {
+  close(connections[index].fd);
   // Successfully closed and unlocked fifo
   connections[index].connected = false;
   memset(connections[index].username, 0, sizeof(connections[index].username));
