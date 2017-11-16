@@ -128,7 +128,7 @@ void start_server(int portnumber, int nclient) {
             if (j == 1) {
               // Server "exit" command from STDIN terminates server
               if (strcmp(cmd, "exit") == 0) {
-                close_allfd(pfd, NMAX + 1);
+                close_allfd(pfd, NMAX + 2);
                 free(connections);
                 exit(EXIT_SUCCESS);
               }
@@ -182,7 +182,6 @@ void parse_cmd(char* buf, int pipenumber) {
 
 /* Server opens a chat session for a user. */
 int server_open(int index, char* username) {
-  int file_desc;
   char msg_out[MAX_BUF];
   if (username_taken(username)) {
     snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
@@ -268,19 +267,18 @@ void server_close_client(int index) {
     print_error(E_WRITE_OUT);
   }
 
-  close_fifo(index, fd);
+  close_connection(index);
 }
 
 void server_exit_client(int index) {
-  int fd = connections[index].fd;
-  close_fifo(index, fd);
+  close_connection(index);
 }
 
 /* Helper function to close all fds that is connected */
 void close_allfd(struct pollfd pfd[], int len) {
-  for (int i = 1; i < len; i++) {
+  for (int i = 2; i < len; i++) {
     close(pfd[i].fd);
-    close(connections[i-1].fd);
+    close(connections[i-2].fd);
   }
 }
 
