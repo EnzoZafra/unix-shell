@@ -30,10 +30,11 @@ int numpolls;
 */
 void start_server(int portnumber, int nclient) {
   // Add one for stdin and one for managing socket
-  int rval, timeout, fromlen, conn_idx;
+  int rval, timeout, conn_idx;
   char buf[MAX_OUT_LINE];
   char* cmd;
   struct sockaddr_in sockIN, from;
+  socklen_t fromlen;
   /* FILE* sfp[nclient + 2]; */
 
   connections = malloc(nclient * sizeof(*connections));
@@ -89,26 +90,32 @@ void start_server(int portnumber, int nclient) {
     else if (rval != 0) {
 
       // check managing socket
-      if ((numpolls < nclient + 2) && (pfd[0].revents & POLLIN)) {
+      // nclient + 3 because: 5 max clients + stdin + managing socket + 1 extra for queued client
+      if ((numpolls <= nclient + 3) && (pfd[0].revents & POLLIN)) {
 
         // accept new connection
         fromlen = sizeof (from);
 
-        conn_idx = numpolls - 2;
-        connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
-        connections[conn_idx].connected = true;
+        // server is already serving max num of clients, let it connect so we can give it an error.
+        if (numpolls == nclient + 2) {
+          int errorfd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
+          char msg_out[MAX_BUF];
+          snprintf(msg_out, sizeof(msg_out), "[server] Error: server is currently full. Try again later\n");
+          if(write(errorfd, msg_out, MAX_OUT_LINE) == -1) {
+            print_error(E_WRITE);
+          }
+          shutdown(errorfd, SHUT_WR);
+        }
+        else {
 
-        /* /1* we may also want to perform STREAM I/O *1/ */
-        /* // TODO: rm if dont want to use stream io */
-        /* if ((sfp[numpolls] = fdopen(connections[conn_idx].fd, "r")) < 0) { */
-        /*   print_error(E_OPENSOCK); */
-        /*   exit(1); */
-        /* } */
-
-        pfd[numpolls].fd= connections[conn_idx].fd;
-        pfd[numpolls].events= POLLIN;
-        pfd[numpolls].revents= 0;
-        numpolls++;
+          conn_idx = numpolls - 2;
+          connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
+          connections[conn_idx].connected = true;
+          pfd[numpolls].fd= connections[conn_idx].fd;
+          pfd[numpolls].events= POLLIN;
+          pfd[numpolls].revents= 0;
+          numpolls++;
+        }
       }
 
       // Find the fd that has data
