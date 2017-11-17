@@ -67,16 +67,13 @@ void print_error(int errorcode) {
       fprintf(stderr, "failed to create socket\n");
       break;
     case 6:
-      fprintf(stderr, "failed to write to inFIFO! errno: %i\n", errno);
+      fprintf(stderr, "failed to write to socket errno: %i\n", errno);
       break;
     case 7:
       fprintf(stderr, "error when polling file descriptors. errno: %i\n", errno);
       break;
-    case 8:
-      fprintf(stderr, "failed to write to outFIFO. errno: %i\n", errno);
-      break;
     case 9:
-      fprintf(stderr, "failed to read FIFO. errno: %i\n", errno);
+      fprintf(stderr, "failed to read socket errno: %i\n", errno);
       break;
     case 10:
       fprintf(stderr, "failed to bind server managing socket\n");

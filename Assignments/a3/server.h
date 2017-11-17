@@ -38,5 +38,6 @@ void clear_receipients(int index);
 void close_connection(int index);
 bool username_taken(char* username);
 void write_connected_msg(char* username);
+void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size);
 
 #endif

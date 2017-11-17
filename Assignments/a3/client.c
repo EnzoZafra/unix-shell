@@ -172,7 +172,7 @@ bool open_chat(char* username) {
     snprintf(outmsg, sizeof(outmsg), "%s|%s|", "open", username);
 
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_IN);
+      print_error(E_WRITE);
     }
 
     return true;
@@ -195,7 +195,7 @@ void list_logged() {
     snprintf(outmsg, sizeof(outmsg), "who|\n");
 
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_IN);
+      print_error(E_WRITE);
     }
   }
   else {
@@ -210,7 +210,7 @@ void add_receipient(char* receipients) {
     snprintf(outmsg, sizeof(outmsg), "to|%s\n", receipients);
 
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_IN);
+      print_error(E_WRITE);
     }
   }
   else {
@@ -225,7 +225,7 @@ void send_chat(char* message) {
     snprintf(outmsg, sizeof(outmsg), "<|%s\n", message);
 
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_IN);
+      print_error(E_WRITE);
     }
   }
   else {
@@ -241,7 +241,7 @@ bool close_client() {
   if (sockOUT[1].fd != -1) {
     snprintf(outmsg, sizeof(outmsg), "close|");
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_IN);
+      print_error(E_WRITE);
       return false;
     }
 
@@ -280,7 +280,7 @@ bool exit_client() {
   if (sockOUT[1].fd != -1) {
     snprintf(outmsg, sizeof(outmsg), "exit|");
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_IN);
+      print_error(E_WRITE);
     }
 
     // Close sock fd

@@ -1,4 +1,4 @@
-CC = gcc-5
+CC = gcc
 
 CFLAGS = -g -Wall
 

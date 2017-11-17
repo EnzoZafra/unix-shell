@@ -22,6 +22,7 @@
 #include "server.h"
 
 t_conn* connections;
+struct pollfd pfd[NMAX + 2];
 int numpolls;
 
 /* Main function for the server, contains the parsing of the client messages by
@@ -29,7 +30,6 @@ int numpolls;
 */
 void start_server(int portnumber, int nclient) {
   // Add one for stdin and one for managing socket
-  struct pollfd pfd[nclient + 2];
   int rval, timeout, fromlen, conn_idx;
   char buf[MAX_OUT_LINE];
   char* cmd;
@@ -138,7 +138,7 @@ void start_server(int portnumber, int nclient) {
           else {
             printf("j: %i\n", j);
             printf("numpolls: %i\n", numpolls);
-            print_error(E_READ);
+            /* print_error(E_READ); */
           }
         }
       }
@@ -186,7 +186,7 @@ int server_open(int index, char* username) {
   if (username_taken(username)) {
     snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
     if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
-      print_error(E_WRITE_OUT);
+      print_error(E_WRITE);
     }
     close_connection(index);
     return -1;
@@ -219,7 +219,7 @@ void server_list_logged(int index) {
   }
   strcat(msg_out, "\n");
   if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_OUT);
+    print_error(E_WRITE);
   }
 }
 
@@ -246,7 +246,7 @@ void server_receive_msg(int index, char* msg) {
     for (int j = 0; j < NMAX; j++) {
       if (strcmp(receipient, connections[j].username) == 0) {
         if(write(connections[j].fd, msg_out, MAX_OUT_LINE) == -1) {
-          print_error(E_WRITE_OUT);
+          print_error(E_WRITE);
         }
       }
     }
@@ -263,7 +263,7 @@ void server_close_client(int index) {
   snprintf(msg_out, sizeof(msg_out), "[server] done\n");
 
   if(write(fd, msg_out, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_OUT);
+    print_error(E_WRITE);
   }
 
   close_connection(index);
@@ -305,7 +305,9 @@ void close_connection(int index) {
   connections[index].connected = false;
   memset(connections[index].username, 0, sizeof(connections[index].username));
   connections[index].fd = -1;
+  pfd[index+2].fd = -1;
   clear_receipients(index);
+  pollfd_conn_defrag(pfd, connections, NMAX + 2, NMAX);
 }
 
 /* Writes a message to all of the connected users */
@@ -319,8 +321,25 @@ void write_connected_msg(char* username) {
   for (int i = 0; i < NMAX; i++) {
     if (connections[i].connected) {
       if(write(connections[i].fd, msg_out, MAX_OUT_LINE) == -1) {
-        print_error(E_WRITE_OUT);
+        print_error(E_WRITE);
       }
     }
   }
+}
+
+void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size) {
+    int new_size = 0;
+    for (int x = 0; x < pfd_size; x++) {
+      if (pfd[x].fd < 0) {
+        continue;
+      }
+      pfd[new_size++] = pfd[x];
+    }
+    new_size = 0;
+    for (int y = 0; y < conn_size; y++) {
+      if (conn[y].fd < 0) {
+        continue;
+      }
+      conn[new_size++] = conn[y];
+    }
 }
