@@ -33,11 +33,10 @@ void server_add_receipient(int index, char* receipients);
 void server_receive_msg(int index, char* msg);
 void server_close_client(int index);
 void server_exit_client(int index);
-void createFIFOs(char* baseName, int nclient);
 void close_allfd(struct pollfd in_fds[], int len);
 void clear_receipients(int index);
 void close_connection(int index);
 bool username_taken(char* username);
-void write_connected_msg(char* username, int index);
+void write_connected_msg(char* username);
 
 #endif

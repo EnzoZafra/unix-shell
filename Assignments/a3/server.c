@@ -22,23 +22,23 @@
 #include "server.h"
 
 t_conn* connections;
+int numpolls;
 
 /* Main function for the server, contains the parsing of the client messages by
-   polling the inFIFOs.
+   polling the socket FDs.
 */
 void start_server(int portnumber, int nclient) {
   // Add one for stdin and one for managing socket
   struct pollfd pfd[nclient + 2];
-  int newsock[nclient + 2];
-  int rval, timeout, numpolls, fromlen, conn_idx;
+  int rval, timeout, fromlen, conn_idx;
   char buf[MAX_OUT_LINE];
   char* cmd;
   struct sockaddr_in sockIN, from;
-  FILE* sfp[nclient + 2];
+  /* FILE* sfp[nclient + 2]; */
 
   connections = malloc(nclient * sizeof(*connections));
 
-  printf("Chat server begins [number of clients = %d]\n", nclient);
+  printf("Chat server begins [port = %i] [nclient = %d]\n", portnumber, nclient);
 
   // Create managing socket
   int manage_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -82,39 +82,37 @@ void start_server(int portnumber, int nclient) {
   numpolls = 2;
 
   while (1) {
-    rval= poll (pfd, numpolls, timeout);
+    rval= poll(pfd, numpolls, timeout);
     if (rval == -1) {
       print_error(E_POLL);
     }
     else if (rval != 0) {
 
       // check managing socket
-      if ((numpolls < nclient) && (pfd[0].revents & POLLIN)) {
+      if ((numpolls < nclient + 2) && (pfd[0].revents & POLLIN)) {
 
         // accept new connection
         fromlen = sizeof (from);
-        newsock[numpolls]= accept(manage_sock, (struct sockaddr *) &from, &fromlen);
-
-        /* we may also want to perform STREAM I/O */
-        // TODO: rm if dont want to use stream io
-        if ((sfp[numpolls] = fdopen(newsock[numpolls], "r")) < 0) {
-          print_error(E_OPENSOCK);
-          exit(1);
-        }
-
-        pfd[numpolls].fd= newsock[numpolls];
-        pfd[numpolls].events= POLLIN;
-        pfd[numpolls].revents= 0;
 
         conn_idx = numpolls - 2;
+        connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
         connections[conn_idx].connected = true;
-        connections[conn_idx].fd = newsock[numpolls];
 
+        /* /1* we may also want to perform STREAM I/O *1/ */
+        /* // TODO: rm if dont want to use stream io */
+        /* if ((sfp[numpolls] = fdopen(connections[conn_idx].fd, "r")) < 0) { */
+        /*   print_error(E_OPENSOCK); */
+        /*   exit(1); */
+        /* } */
+
+        pfd[numpolls].fd= connections[conn_idx].fd;
+        pfd[numpolls].events= POLLIN;
+        pfd[numpolls].revents= 0;
         numpolls++;
       }
 
       // Find the fd that has data
-      for (int j = 1; j <= nclient + 1; j++) {
+      for (int j = 1; j < numpolls; j++) {
         if (pfd[j].revents & POLLIN) {
           // Clear the buffer
           memset(buf, 0, sizeof(buf));
@@ -138,6 +136,8 @@ void start_server(int portnumber, int nclient) {
             }
           }
           else {
+            printf("j: %i\n", j);
+            printf("numpolls: %i\n", numpolls);
             print_error(E_READ);
           }
         }
@@ -150,7 +150,8 @@ void start_server(int portnumber, int nclient) {
 void parse_cmd(char* buf, int pipenumber) {
   char* args;
   char* cmd = strtok(buf, "|\n");
-  int index = pipenumber - 1;
+  int index = pipenumber - 2;
+  printf("index: %i\n", index);
 
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
@@ -191,11 +192,11 @@ int server_open(int index, char* username) {
     return -1;
   }
   else {
-    // Successfully locked and connected to a FIFO
+    // Username is not taken
     strcpy(connections[index].username, username);
 
-    /* // Write server msg to fifo */
-    write_connected_msg(username, index);
+    /* // Write server msg to socket */
+    write_connected_msg(username);
     return connections[index].fd;
   }
 }
@@ -207,7 +208,7 @@ void server_list_logged(int index) {
 
   // Build message
   memset(msg_out, 0, sizeof(msg_out));
-  // Write server msg to fifo
+  // Write server msg to socket
   snprintf(msg_out, sizeof(msg_out), "[server] Current users:");
   for (int i = 0; i < NMAX; i++) {
     if (strlen(connections[i].username) != 0) {
@@ -237,7 +238,6 @@ void server_receive_msg(int index, char* msg) {
 
   // Build message
   memset(msg_out, 0, sizeof(msg_out));
-  // Write server msg to fifo
   snprintf(msg_out, sizeof(msg_out), "[%s] %s\n", connections[index].username, msg);
 
   // Loop through the list of receipients
@@ -259,7 +259,7 @@ void server_close_client(int index) {
 
   int fd = connections[index].fd;
   memset(msg_out, 0, sizeof(msg_out));
-  // Write server msg to fifo
+  // Write server msg to socket
   snprintf(msg_out, sizeof(msg_out), "[server] done\n");
 
   if(write(fd, msg_out, MAX_OUT_LINE) == -1) {
@@ -276,8 +276,7 @@ void server_exit_client(int index) {
 /* Helper function to close all fds that is connected */
 void close_allfd(struct pollfd pfd[], int len) {
   for (int i = 2; i < len; i++) {
-    close(pfd[i].fd);
-    close(connections[i-2].fd);
+    shutdown(pfd[i].fd, SHUT_WR);
   }
 }
 
@@ -301,8 +300,8 @@ void clear_receipients(int index) {
 
 /* Helper function to close the connection */
 void close_connection(int index) {
-  close(connections[index].fd);
-  // Successfully closed and unlocked fifo
+  numpolls--;
+  shutdown(connections[index].fd, SHUT_WR);
   connections[index].connected = false;
   memset(connections[index].username, 0, sizeof(connections[index].username));
   connections[index].fd = -1;
@@ -310,13 +309,12 @@ void close_connection(int index) {
 }
 
 /* Writes a message to all of the connected users */
-void write_connected_msg(char* username, int index) {
+void write_connected_msg(char* username) {
   char msg_out[MAX_BUF];
   memset(msg_out, 0, sizeof msg_out);
 
-  // Write server msg to fifo
-  snprintf(msg_out, sizeof(msg_out), "[server] User `%s` connected on FIFO %d\n",
-            username, index + 1);
+  // Write server msg to all sockets
+  snprintf(msg_out, sizeof(msg_out), "[server] User `%s` logged in.\n", username);
 
   for (int i = 0; i < NMAX; i++) {
     if (connections[i].connected) {

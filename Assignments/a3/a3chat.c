@@ -61,27 +61,38 @@ void print_error(int errorcode) {
       fprintf(stderr, "usage: a3chat [-c | -s] portnumber [serveraddress | nclient]\n");
       break;
     case 4:
-      fprintf(stderr, "client must be an integer in the range 0 < nclient <= 5\n");
+      fprintf(stderr, "nclient must be an integer in the range 0 < nclient <= 5\n");
+      break;
     case 5:
       fprintf(stderr, "failed to create socket\n");
+      break;
     case 6:
       fprintf(stderr, "failed to write to inFIFO! errno: %i\n", errno);
+      break;
     case 7:
       fprintf(stderr, "error when polling file descriptors. errno: %i\n", errno);
+      break;
     case 8:
       fprintf(stderr, "failed to write to outFIFO. errno: %i\n", errno);
+      break;
     case 9:
-      fprintf(stderr, "failed to write read FIFO. errno: %i\n", errno);
+      fprintf(stderr, "failed to read FIFO. errno: %i\n", errno);
+      break;
     case 10:
       fprintf(stderr, "failed to bind server managing socket\n");
+      break;
     case 11:
       fprintf(stderr, "invalid portnumber\n");
+      break;
     case 12:
       fprintf(stderr, "failed to open FILE for client socket\n");
+      break;
     case 13:
       fprintf(stderr, "failed to get host by name\n");
+      break;
     case 14:
       fprintf(stderr, "failed to connect to the server\n");
+      break;
   }
   exit(EXIT_FAILURE);
 }

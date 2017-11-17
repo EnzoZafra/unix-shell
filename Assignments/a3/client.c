@@ -16,63 +16,39 @@
 #include <poll.h>
 #include <errno.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 
 #include "a3chat.h"
 #include "client.h"
 #include "server.h"
 
+bool connected = false;
 struct pollfd sockOUT[NMAX];
 int numfds = 2;
+struct hostent *hp;
+int serv_port;
+FILE* sfp;
 
-/* Main function for the client, contains the loop which polls the fifos
+/* Main function for the client, contains the loop which polls the socket fds
    and prompts the user for input
  */
 void start_client(int portNum, char* serverAddress) {
-  // One for outFIFO, one for STDIN
   char buf[MAX_BUF];
   char* command;
   int rval, timeout;
   bool prompt_user = true;
-  struct hostent *hp;
-  struct sockaddr_in server;
-  FILE* sfp;
+
+  serv_port = portNum;
 
   hp = gethostbyname(serverAddress);
   if (hp == (struct hostent *) NULL) {
     print_error(E_GETHOST);
-	  exit (1);
+	  exit(1);
   }
-  printf("Chat client begins (server '%s' [%s], port %i)\n", serverAddress, hp->h_addr, portNum);
-
-  memset ((char *) &server, 0, sizeof server);
-  memcpy ((char *) &server.sin_addr, hp->h_addr, hp->h_length);
-  server.sin_family= hp->h_addrtype;
-  server.sin_port= htons(portNum);
-
-  // Create socket and initialize connection
-
-  int fd = socket(hp->h_addrtype, SOCK_STREAM, 0);
-  if (fd < 0) {
-    print_error(E_SOCKET);
-    exit(1);
-  }
-
-  if (connect(fd, (struct sockaddr *) &server, sizeof server) < 0) {
-    print_error(E_CONNECT);
-    exit(1);
-  }
-
-  sockOUT[1].fd = fd;
-  sockOUT[1].events = POLLIN;
-  sockOUT[1].revents = 0;
-
-  /* we may also want to perform STREAM I/O on the socket */
-  // TODO: delete if dont want to use stream IO
-
-  if ((sfp= fdopen(fd, "r")) < 0) {
-    print_error(E_OPENSOCK);
-    exit(1);
-  }
+  struct in_addr **addr_list;
+  addr_list = (struct in_addr **)hp->h_addr_list;
+  char* ipAddr = inet_ntoa(*addr_list[0]);
+  printf("Chat client begins (server '%s' [%s], port %i)\n", hp->h_name, ipAddr, portNum);
 
   // Add stdin to poll struct
   sockOUT[0].fd = STDIN_FILENO;
@@ -110,7 +86,9 @@ void start_client(int portNum, char* serverAddress) {
             }
             else {
               // parse the server's message
-              parse_server_msg(buf);
+              if (connected) {
+                parse_server_msg(buf);
+              }
             }
           }
         }
@@ -123,14 +101,14 @@ void start_client(int portNum, char* serverAddress) {
 void parse_input(char* input) {
   char* args;
   if (strcmp(input, "open") == 0) {
-    if (sockOUT[1].fd != -1) {
+    if (connected) {
       printf("please close current chat session before starting a new one.\n");
       return;
     }
     args = strtok(NULL, "\n");
     if (args != NULL) {
       args[strcspn(args, "\n")] = 0;
-      open_chat(args);
+      connected = open_chat(args);
     }
     else {
       printf("usage: open [username]\n");
@@ -154,26 +132,60 @@ void parse_input(char* input) {
     }
   }
   else if (strcmp(input, "close") == 0) {
-    close_client();
+    connected = close_client();
   }
   else if (strcmp(input, "exit") == 0) {
-    exit_client();
+    connected = exit_client();
   }
   else {
     printf("command not found: %s\n", input);
   }
 }
 
-void open_chat(char* username) {
-  char outmsg[MAX_OUT_LINE];
+bool open_chat(char* username) {
+  struct sockaddr_in server;
 
+  memset ((char *) &server, 0, sizeof server);
+  memcpy ((char *) &server.sin_addr, hp->h_addr, hp->h_length);
+  server.sin_family= hp->h_addrtype;
+  server.sin_port= htons(serv_port);
 
-  // Write command, username to the fifo so server knows we want to connect
-  snprintf(outmsg, sizeof(outmsg), "%s|%s|", "open", username);
+  // Create socket and initialize connection
 
-  if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
-    print_error(E_WRITE_IN);
+  int fd = socket(hp->h_addrtype, SOCK_STREAM, 0);
+  if (fd < 0) {
+    print_error(E_SOCKET);
+    exit(1);
   }
+
+  if (connect(fd, (struct sockaddr *) &server, sizeof server) < 0) {
+    printf("failed to connect to server. server may be down. \n");
+    return false;
+  } else {
+    sockOUT[1].fd = fd;
+    sockOUT[1].events = POLLIN;
+    sockOUT[1].revents = 0;
+
+    char outmsg[MAX_OUT_LINE];
+
+    // Write command, username to the socket so server knows we want to connect
+    snprintf(outmsg, sizeof(outmsg), "%s|%s|", "open", username);
+
+    if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
+      print_error(E_WRITE_IN);
+    }
+
+    return true;
+  }
+
+  /* we may also want to perform STREAM I/O on the socket */
+  // TODO: delete if dont want to use stream IO
+  if ((sfp= fdopen(fd, "r")) < 0) {
+    print_error(E_OPENSOCK);
+    exit(1);
+  }
+
+  return false;
 }
 
 /* Tells the server that the client wants a list of logged users */
@@ -222,7 +234,7 @@ void send_chat(char* message) {
 }
 
 /* Closes a chat session for the user */
-void close_client() {
+bool close_client() {
   char outmsg[MAX_OUT_LINE];
   char buf[MAX_OUT_LINE];
 
@@ -230,6 +242,7 @@ void close_client() {
     snprintf(outmsg, sizeof(outmsg), "close|");
     if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE_IN);
+      return false;
     }
 
     // Read once for server reply and close
@@ -237,6 +250,7 @@ void close_client() {
     int rval = poll(sockOUT, numfds, 250);
     if (rval == -1) {
       print_error(E_POLL);
+      return false;
     }
     else if (rval != 0) {
       if(sockOUT[1].revents & POLLIN) {
@@ -246,8 +260,9 @@ void close_client() {
           // Print server reponse
           printf("%s", buf);
 
-          // Close in and out fifo
+          // Close sock_fd
           close_sockfd();
+          return false;
         }
       }
     }
@@ -255,10 +270,11 @@ void close_client() {
   else {
     printf("You are not connected to a chat session.\n");
   }
+  return false;
 }
 
 /* Exits the client program */
-void exit_client() {
+bool exit_client() {
   char outmsg[MAX_OUT_LINE];
 
   if (sockOUT[1].fd != -1) {
@@ -267,7 +283,7 @@ void exit_client() {
       print_error(E_WRITE_IN);
     }
 
-    // Close in and out fifos
+    // Close sock fd
     close_sockfd();
   }
   exit(EXIT_SUCCESS);
@@ -276,8 +292,9 @@ void exit_client() {
 /* Helper function to close socket fd */
 void close_sockfd() {
   // Close socket fd
-  close(sockOUT[1].fd);
+  shutdown(sockOUT[1].fd, SHUT_WR);
   sockOUT[1].fd = -1;
+  connected = false;
 }
 
 /* Helper function for parsing the server message */
