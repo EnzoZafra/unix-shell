@@ -26,7 +26,9 @@ typedef enum {
   E_READ = 9,
   E_FAIL_BIND = 10,
   E_INVALID_PORTNUM = 11,
-  E_OPENSOCK = 12
+  E_OPENSOCK = 12,
+  E_GETHOST = 13,
+  E_CONNECT = 14
 } error_t;
 
 void print_error(int errorcode);

@@ -15,35 +15,69 @@
 #include <unistd.h>
 #include <poll.h>
 #include <errno.h>
+#include <netdb.h>
 
 #include "a3chat.h"
 #include "client.h"
 #include "server.h"
 
-char* baseFifoName;
-int fd = -1;
-struct pollfd out_fds[NMAX];
+struct pollfd sockOUT[NMAX];
 int numfds = 2;
-
 
 /* Main function for the client, contains the loop which polls the fifos
    and prompts the user for input
  */
-void start_client(char* baseName) {
+void start_client(int portNum, char* serverAddress) {
   // One for outFIFO, one for STDIN
   char buf[MAX_BUF];
   char* command;
   int rval, timeout;
   bool prompt_user = true;
+  struct hostent *hp;
+  struct sockaddr_in server;
+  FILE* sfp;
 
-  baseFifoName = baseName;
-  printf("Chat client begins\n");
+  hp = gethostbyname(serverAddress);
+  if (hp == (struct hostent *) NULL) {
+    print_error(E_GETHOST);
+	  exit (1);
+  }
+  printf("Chat client begins (server '%s' [%s], port %i)\n", serverAddress, hp->h_addr, portNum);
 
-  // For now, client does not need to multiplex. Just echoing from server
-  // Add STDIN file descriptor to array
-  out_fds[0].fd = STDIN_FILENO;
-  out_fds[0].events = POLLIN;
-  out_fds[0].revents = 0;
+  memset ((char *) &server, 0, sizeof server);
+  memcpy ((char *) &server.sin_addr, hp->h_addr, hp->h_length);
+  server.sin_family= hp->h_addrtype;
+  server.sin_port= htons(portNum);
+
+  // Create socket and initialize connection
+
+  int fd = socket(hp->h_addrtype, SOCK_STREAM, 0);
+  if (fd < 0) {
+    print_error(E_SOCKET);
+    exit(1);
+  }
+
+  if (connect(fd, (struct sockaddr *) &server, sizeof server) < 0) {
+    print_error(E_CONNECT);
+    exit(1);
+  }
+
+  sockOUT[1].fd = fd;
+  sockOUT[1].events = POLLIN;
+  sockOUT[1].revents = 0;
+
+  /* we may also want to perform STREAM I/O on the socket */
+  // TODO: delete if dont want to use stream IO
+
+  if ((sfp= fdopen(fd, "r")) < 0) {
+    print_error(E_OPENSOCK);
+    exit(1);
+  }
+
+  // Add stdin to poll struct
+  sockOUT[0].fd = STDIN_FILENO;
+  sockOUT[0].events = POLLIN;
+  sockOUT[0].revents = 0;
 
   timeout = 250;
 
@@ -56,17 +90,17 @@ void start_client(char* baseName) {
       prompt_user = false;
     }
 
-    rval = poll(out_fds, numfds, timeout);
+    rval = poll(sockOUT, numfds, timeout);
     if (rval == -1) {
       print_error(E_POLL);
     }
     else if (rval != 0) {
       for (int j = 0; j < numfds; j++) {
-        if(out_fds[j].revents & POLLIN) {
+        if(sockOUT[j].revents & POLLIN) {
           // Clear buffer
           memset(buf, 0, sizeof(buf));
           prompt_user = true;
-          if (read(out_fds[j].fd, buf, MAX_BUF) > 0) {
+          if (read(sockOUT[j].fd, buf, MAX_BUF) > 0) {
             // stdin
             if (j == 0) {
               command = strtok(buf, " \n");
@@ -89,14 +123,14 @@ void start_client(char* baseName) {
 void parse_input(char* input) {
   char* args;
   if (strcmp(input, "open") == 0) {
-    if (fd != -1) {
+    if (sockOUT[1].fd != -1) {
       printf("please close current chat session before starting a new one.\n");
       return;
     }
     args = strtok(NULL, "\n");
     if (args != NULL) {
       args[strcspn(args, "\n")] = 0;
-      fd = open_chat(args);
+      open_chat(args);
     }
     else {
       printf("usage: open [username]\n");
@@ -130,57 +164,25 @@ void parse_input(char* input) {
   }
 }
 
-/* Opens the inFifos and outFifos when a user opens a chat session */
-int open_chat(char* username) {
-  char infifo[MAX_NAME];
-  char outfifo[MAX_NAME+1];
+void open_chat(char* username) {
   char outmsg[MAX_OUT_LINE];
-  int file_desc;
 
-  for (int i = 1; i <= NMAX; i++) {
-    memset(infifo, 0, sizeof infifo);
-    snprintf(infifo, sizeof infifo, "%s-%d.in", baseFifoName, i);
-    file_desc = open(infifo, O_WRONLY | O_NONBLOCK);
 
-    if (lockf(file_desc, F_TEST, 0) == -1) {
-      close(file_desc);
-    }
-    else {
-      if (lockf(file_desc, F_LOCK, MAX_BUF) != -1) {
-        // Successfully locked and connected to a FIFO
-        printf("FIFO [%s] has been successfully locked by PID [%d]\n", infifo, getpid());
+  // Write command, username to the fifo so server knows we want to connect
+  snprintf(outmsg, sizeof(outmsg), "%s|%s|", "open", username);
 
-        // Listen to outFIFO
-        snprintf(outfifo, sizeof outfifo, "%s-%d.out", baseFifoName, i);
-        int outfd = open(outfifo, O_RDONLY | O_NONBLOCK);
-        out_fds[1].fd = outfd;
-        out_fds[1].events = POLLIN;
-        out_fds[1].revents = 0;
-
-        // Write command, username to the fifo so server knows we connected
-        snprintf(outmsg, sizeof(outmsg), "%s|%s|", "open", username);
-
-        if(write(file_desc, outmsg, MAX_OUT_LINE) == -1) {
-          print_error(E_WRITE_IN);
-        }
-
-        return file_desc;
-      }
-    }
+  if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
+    print_error(E_WRITE_IN);
   }
-
-  // Was not able to find an unlocked FIFO
-  printf("No unlocked inFIFO is available for use. Please try again later.\n");
-  return -1;
 }
 
 /* Tells the server that the client wants a list of logged users */
 void list_logged() {
-  if (fd != -1) {
+  if (sockOUT[1].fd != -1) {
     char outmsg[MAX_OUT_LINE];
     snprintf(outmsg, sizeof(outmsg), "who|\n");
 
-    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE_IN);
     }
   }
@@ -191,11 +193,11 @@ void list_logged() {
 
 /* Tells the server that the client wants to add a recipient to its list */
 void add_receipient(char* receipients) {
-  if (fd != -1) {
+  if (sockOUT[1].fd != -1) {
     char outmsg[MAX_OUT_LINE];
     snprintf(outmsg, sizeof(outmsg), "to|%s\n", receipients);
 
-    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE_IN);
     }
   }
@@ -206,11 +208,11 @@ void add_receipient(char* receipients) {
 
 /* Sends a chat message to all of the clients recipients */
 void send_chat(char* message) {
-  if (fd != -1) {
+  if (sockOUT[1].fd != -1) {
     char outmsg[MAX_OUT_LINE];
     snprintf(outmsg, sizeof(outmsg), "<|%s\n", message);
 
-    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE_IN);
     }
   }
@@ -224,28 +226,28 @@ void close_client() {
   char outmsg[MAX_OUT_LINE];
   char buf[MAX_OUT_LINE];
 
-  if (fd != -1) {
+  if (sockOUT[1].fd != -1) {
     snprintf(outmsg, sizeof(outmsg), "close|");
-    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE_IN);
     }
 
     // Read once for server reply and close
     memset(buf, 0, sizeof(buf));
-    int rval = poll(out_fds, numfds, 250);
+    int rval = poll(sockOUT, numfds, 250);
     if (rval == -1) {
       print_error(E_POLL);
     }
     else if (rval != 0) {
-      if(out_fds[1].revents & POLLIN) {
+      if(sockOUT[1].revents & POLLIN) {
         // Clear buffer
         memset(buf, 0, sizeof(buf));
-        if (read(out_fds[1].fd, buf, MAX_BUF) > 0) {
+        if (read(sockOUT[1].fd, buf, MAX_BUF) > 0) {
           // Print server reponse
           printf("%s", buf);
 
           // Close in and out fifo
-          close_io_fifo();
+          close_sockfd();
         }
       }
     }
@@ -259,33 +261,29 @@ void close_client() {
 void exit_client() {
   char outmsg[MAX_OUT_LINE];
 
-  if (fd != -1) {
+  if (sockOUT[1].fd != -1) {
     snprintf(outmsg, sizeof(outmsg), "exit|");
-    if(write(fd, outmsg, MAX_OUT_LINE) == -1) {
+    if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE_IN);
     }
 
     // Close in and out fifos
-    close_io_fifo();
+    close_sockfd();
   }
   exit(EXIT_SUCCESS);
 }
 
-/* Helper function to close both inFD and out FD */
-void close_io_fifo() {
-  // Close out fifo
-  close(out_fds[1].fd);
-  out_fds[1].fd = -1;
-  // Close and unlock infifo
-  lockf(fd, F_ULOCK, MAX_BUF);
-  close(fd);
-  fd = -1;
+/* Helper function to close socket fd */
+void close_sockfd() {
+  // Close socket fd
+  close(sockOUT[1].fd);
+  sockOUT[1].fd = -1;
 }
 
 /* Helper function for parsing the server message */
 void parse_server_msg(char* buf) {
   if (strncmp(buf, "[server] Error:", 15) == 0) {
-    close_io_fifo();
+    close_sockfd();
   }
   printf("\n%s", buf);
 }

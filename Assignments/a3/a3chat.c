@@ -78,6 +78,10 @@ void print_error(int errorcode) {
       fprintf(stderr, "invalid portnumber\n");
     case 12:
       fprintf(stderr, "failed to open FILE for client socket\n");
+    case 13:
+      fprintf(stderr, "failed to get host by name\n");
+    case 14:
+      fprintf(stderr, "failed to connect to the server\n");
   }
   exit(EXIT_FAILURE);
 }

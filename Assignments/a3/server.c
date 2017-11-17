@@ -30,9 +30,7 @@ void start_server(int portnumber, int nclient) {
   // Add one for stdin and one for managing socket
   struct pollfd pfd[nclient + 2];
   int newsock[nclient + 2];
-  char infifo[MAX_NAME];
-  char outfifo[MAX_NAME + 1];
-  int file_desc, rval, timeout, numpolls, fromlen, conn_idx;
+  int rval, timeout, numpolls, fromlen, conn_idx;
   char buf[MAX_OUT_LINE];
   char* cmd;
   struct sockaddr_in sockIN, from;
@@ -98,9 +96,10 @@ void start_server(int portnumber, int nclient) {
         newsock[numpolls]= accept(manage_sock, (struct sockaddr *) &from, &fromlen);
 
         /* we may also want to perform STREAM I/O */
+        // TODO: rm if dont want to use stream io
         if ((sfp[numpolls] = fdopen(newsock[numpolls], "r")) < 0) {
           print_error(E_OPENSOCK);
-          exit (1);
+          exit(1);
         }
 
         pfd[numpolls].fd= newsock[numpolls];
