@@ -69,8 +69,8 @@ void start_client(int portNum, char* serverAddress) {
       if (fmod(elapsed, (double) KAL_INTERVAL) == 0) {
         if (!sent_kam) {
           char outmsg[MAX_OUT_LINE];
-          // TODO: build TCK and send that instead
-          snprintf(outmsg, sizeof(outmsg), "SOMEMESSAGE");
+          snprintf(outmsg, sizeof(outmsg), "%c%c%c%c%c", KAL_CHAR, KAL_CHAR, KAL_CHAR,
+              KAL_CHAR, KAL_CHAR);
           if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
             print_error(E_WRITE);
           }

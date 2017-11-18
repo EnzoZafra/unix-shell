@@ -169,7 +169,9 @@ void parse_cmd(char* buf, int pipenumber) {
   char* args;
   char* cmd = strtok(buf, "|\n");
   int index = pipenumber - 2;
+  char ack[KAL_LENGTH + 1];
 
+  snprintf(ack, sizeof(ack), "%c%c%c%c%c", KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR);
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
     if (args == NULL) {
@@ -196,7 +198,8 @@ void parse_cmd(char* buf, int pipenumber) {
     server_exit_client(index);
   }
   // TODO: Change this to keepalive msg
-  else if (strcmp(cmd, "SOMEMESSAGE") == 0) {
+  else if (strcmp(cmd, ack) == 0) {
+    printf("Got an ack\n");
     connections[index].kam_misses = 0;
   }
 }
