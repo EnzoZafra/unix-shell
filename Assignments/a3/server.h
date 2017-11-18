@@ -30,7 +30,7 @@ typedef struct conn {
 
 void start_server(int portnumber, int nclient);
 void parse_cmd(char* cmd, int index);
-int server_open(int index, char* username);
+void server_open(int index, char* username);
 void server_list_logged(int index);
 void server_add_receipient(int index, char* receipients);
 void server_receive_msg(int index, char* msg);
@@ -43,5 +43,6 @@ bool username_taken(char* username);
 void write_connected_msg(char* username);
 void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size);
 void check_kam(int connections_size);
+void free_connection(int index);
 
 #endif

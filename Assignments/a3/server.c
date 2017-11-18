@@ -89,6 +89,7 @@ void start_server(int portnumber, int nclient) {
     check_kam(nclient);
     for (int i = 0; i < nclient; i++) {
       if (connections[i].kam_misses == KAL_COUNT) {
+        // TODO: rm debug
         printf("%s crashed so we closed him\n", connections[i].username);
         close_connection(i);
       }
@@ -168,13 +169,14 @@ void start_server(int portnumber, int nclient) {
 void parse_cmd(char* buf, int pipenumber) {
   char* args;
   char* cmd = strtok(buf, "|\n");
-  int index = pipenumber - 2;
   char ack[KAL_LENGTH + 1];
+  int index = pipenumber - 2;
 
   snprintf(ack, sizeof(ack), "%c%c%c%c%c", KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR);
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
     if (args == NULL) {
+      // TODO: handle no username
       printf("username not found. Please try again");
       return;
     }
@@ -205,15 +207,17 @@ void parse_cmd(char* buf, int pipenumber) {
 }
 
 /* Server opens a chat session for a user. */
-int server_open(int index, char* username) {
+void server_open(int index, char* username) {
   char msg_out[MAX_BUF];
   if (username_taken(username)) {
     snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
     if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE);
     }
-    close_connection(index);
-    return -1;
+    pfd[numpolls].fd = -1;
+    shutdown(connections[index].fd, SHUT_WR);
+    connections[index].connected = false;
+    numpolls--;
   }
   else {
     // Username is not taken
@@ -221,7 +225,6 @@ int server_open(int index, char* username) {
 
     /* // Write server msg to socket */
     write_connected_msg(username);
-    return connections[index].fd;
   }
 }
 
@@ -281,12 +284,11 @@ void server_receive_msg(int index, char* msg) {
 void server_close_client(int index) {
   char msg_out[MAX_BUF];
 
-  int fd = connections[index].fd;
   memset(msg_out, 0, sizeof(msg_out));
   // Write server msg to socket
   snprintf(msg_out, sizeof(msg_out), "[server] done\n");
 
-  if(write(fd, msg_out, MAX_OUT_LINE) == -1) {
+  if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
     print_error(E_WRITE);
   }
 
@@ -326,13 +328,8 @@ void clear_receipients(int index) {
 void close_connection(int index) {
   numpolls--;
   shutdown(connections[index].fd, SHUT_WR);
-  connections[index].connected = false;
-  memset(connections[index].username, 0, sizeof(connections[index].username));
-  connections[index].fd = -1;
-  connections[index].kam_misses = 0;
-  connections[index].checked_kam = true;
+  free_connection(index);
   pfd[index+2].fd = -1;
-  clear_receipients(index);
   pollfd_conn_defrag(pfd, connections, NMAX + 2, NMAX);
 }
 
@@ -360,6 +357,7 @@ void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn
         continue;
       }
       pfd[new_size++] = pfd[x];
+      pfd[x].fd = -1;
     }
     new_size = 0;
     for (int y = 0; y < conn_size; y++) {
@@ -367,6 +365,7 @@ void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn
         continue;
       }
       conn[new_size++] = conn[y];
+      free_connection(y);
     }
 }
 
@@ -388,4 +387,13 @@ void check_kam(int connections_size) {
       }
     }
   }
+}
+
+void free_connection(int index) {
+  connections[index].fd = -1;
+  connections[index].connected = false;
+  memset(connections[index].username, 0, sizeof(connections[index].username));
+  clear_receipients(index);
+  connections[index].kam_misses = 0;
+  connections[index].checked_kam = true;
 }
