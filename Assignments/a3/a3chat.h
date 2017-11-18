@@ -13,6 +13,12 @@
 #include <stdlib.h>
 
 #define NMAX 5
+#define KAL_CHAR 0x6 // A non-printable character (e.g., ACK)
+#define KAL_LENGTH 5 // Number of KAL_char in one keepalive message
+#define KAL_INTERVAL 1.5 // Client sends a keepalive message every 1.5 seconds
+#define KAL_COUNT 5 // Number of consecutive keepalive messages that needs
+                    // to be missed for the server to consider that the client
+                    // has terminated unexpectedly
 
 typedef enum {
   E_USG_S = 1,

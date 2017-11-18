@@ -12,8 +12,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <poll.h>
+#include <math.h>
 #include <errno.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -27,7 +29,7 @@ struct pollfd sockOUT[NMAX];
 int numfds = 2;
 struct hostent *hp;
 int serv_port;
-FILE* sfp;
+struct timeval start, curr;
 
 /* Main function for the client, contains the loop which polls the socket fds
    and prompts the user for input
@@ -37,6 +39,7 @@ void start_client(int portNum, char* serverAddress) {
   char* command;
   int rval, timeout;
   bool prompt_user = true;
+  bool sent_kam = false;
 
   serv_port = portNum;
 
@@ -58,6 +61,26 @@ void start_client(int portNum, char* serverAddress) {
   timeout = 250;
 
   while(1) {
+    if (connected) {
+      // calc time and print if 1.5 seconds for keepalive
+      gettimeofday(&curr, NULL);
+      double elapsed = curr.tv_sec - start.tv_sec;
+
+      if (fmod(elapsed, (double) KAL_INTERVAL) == 0) {
+        if (!sent_kam) {
+          char outmsg[MAX_OUT_LINE];
+          // TODO: build TCK and send that instead
+          snprintf(outmsg, sizeof(outmsg), "SOMEMESSAGE");
+          if(write(sockOUT[1].fd, outmsg, MAX_OUT_LINE) == -1) {
+            print_error(E_WRITE);
+          }
+          sent_kam = true;
+        }
+      } else {
+        sent_kam = false;
+      }
+    }
+
     // Only print after parsing input or receiving a msg.
     if (prompt_user) {
       // If not printing with a new line, we have to flush the buffer
@@ -175,14 +198,8 @@ bool open_chat(char* username) {
       print_error(E_WRITE);
     }
 
+    gettimeofday(&start, NULL);
     return true;
-  }
-
-  /* we may also want to perform STREAM I/O on the socket */
-  // TODO: delete if dont want to use stream IO
-  if ((sfp= fdopen(fd, "r")) < 0) {
-    print_error(E_OPENSOCK);
-    exit(1);
   }
 
   return false;

@@ -23,6 +23,9 @@ typedef struct conn {
   char username[MAX_NAME];
   char receipients[MAX_RECEIPIENTS][MAX_NAME];
   int num_receipients;
+  int kam_misses;
+  bool checked_kam;
+  struct timeval start;
 } t_conn;
 
 void start_server(int portnumber, int nclient);
@@ -39,5 +42,6 @@ void close_connection(int index);
 bool username_taken(char* username);
 void write_connected_msg(char* username);
 void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size);
+void check_kam(int connections_size);
 
 #endif

@@ -11,6 +11,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
+#include <math.h>
 #include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -35,7 +37,6 @@ void start_server(int portnumber, int nclient) {
   char* cmd;
   struct sockaddr_in sockIN, from;
   socklen_t fromlen;
-  /* FILE* sfp[nclient + 2]; */
 
   connections = malloc(nclient * sizeof(*connections));
 
@@ -76,6 +77,8 @@ void start_server(int portnumber, int nclient) {
     memset(connections[i].username, 0, sizeof(connections[i].username));
     connections[i].connected = 0;
     connections[i].fd = -1;
+    connections[i].kam_misses = 0;
+    connections[i].checked_kam = true;
     clear_receipients(i);
   }
 
@@ -83,6 +86,14 @@ void start_server(int portnumber, int nclient) {
   numpolls = 2;
 
   while (1) {
+    check_kam(nclient);
+    for (int i = 0; i < nclient; i++) {
+      if (connections[i].kam_misses == KAL_COUNT) {
+        printf("%s crashed so we closed him\n", connections[i].username);
+        close_connection(i);
+      }
+    }
+
     rval= poll(pfd, numpolls, timeout);
     if (rval == -1) {
       print_error(E_POLL);
@@ -111,6 +122,7 @@ void start_server(int portnumber, int nclient) {
           conn_idx = numpolls - 2;
           connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
           connections[conn_idx].connected = true;
+          gettimeofday(&connections[conn_idx].start, NULL);
           pfd[numpolls].fd= connections[conn_idx].fd;
           pfd[numpolls].events= POLLIN;
           pfd[numpolls].revents= 0;
@@ -143,8 +155,7 @@ void start_server(int portnumber, int nclient) {
             }
           }
           else {
-            printf("j: %i\n", j);
-            printf("numpolls: %i\n", numpolls);
+            // TODO: not sure what to do here yet.
             /* print_error(E_READ); */
           }
         }
@@ -158,7 +169,6 @@ void parse_cmd(char* buf, int pipenumber) {
   char* args;
   char* cmd = strtok(buf, "|\n");
   int index = pipenumber - 2;
-  printf("index: %i\n", index);
 
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
@@ -184,6 +194,10 @@ void parse_cmd(char* buf, int pipenumber) {
   }
   else if (strcmp(cmd, "exit") == 0) {
     server_exit_client(index);
+  }
+  // TODO: Change this to keepalive msg
+  else if (strcmp(cmd, "SOMEMESSAGE") == 0) {
+    connections[index].kam_misses = 0;
   }
 }
 
@@ -312,6 +326,8 @@ void close_connection(int index) {
   connections[index].connected = false;
   memset(connections[index].username, 0, sizeof(connections[index].username));
   connections[index].fd = -1;
+  connections[index].kam_misses = 0;
+  connections[index].checked_kam = true;
   pfd[index+2].fd = -1;
   clear_receipients(index);
   pollfd_conn_defrag(pfd, connections, NMAX + 2, NMAX);
@@ -349,4 +365,24 @@ void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn
       }
       conn[new_size++] = conn[y];
     }
+}
+
+void check_kam(int connections_size) {
+  struct timeval curr;
+  double elapsed;
+
+  for(int i = 0; i < connections_size; i++) {
+    if(connections[i].connected) {
+      gettimeofday(&curr, NULL);
+      elapsed = curr.tv_sec - connections[i].start.tv_sec;
+      if (fmod(elapsed, (double) KAL_INTERVAL) == 0) {
+        if (!connections[i].checked_kam) {
+          connections[i].kam_misses++;
+          connections[i].checked_kam = true;
+        }
+      } else {
+        connections[i].checked_kam = false;
+      }
+    }
+  }
 }
