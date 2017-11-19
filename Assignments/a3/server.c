@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 #include "a3chat.h"
 #include "client.h"
@@ -26,6 +27,7 @@
 t_conn* connections;
 struct pollfd pfd[NMAX + 2];
 int numpolls;
+bool alarmset = false;
 
 /* Main function for the server, contains the parsing of the client messages by
    polling the socket FDs.
@@ -36,6 +38,7 @@ void start_server(int portnumber, int nclient) {
   char buf[MAX_OUT_LINE];
   char* cmd;
   struct sockaddr_in sockIN, from;
+  struct sigaction sa;
   socklen_t fromlen;
 
   connections = malloc(nclient * sizeof(*connections));
@@ -85,13 +88,24 @@ void start_server(int portnumber, int nclient) {
   timeout = 0;
   numpolls = 2;
 
+  sa.sa_handler = &print_report;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+
+  if (sigaction(SIGALRM, &sa, NULL) == -1) {
+    print_error(E_SIGACTION);
+  }
+
   while (1) {
+    if (!alarmset) {
+      alarm(1);
+      alarmset = true;
+    }
     check_kam(nclient);
     for (int i = 0; i < nclient; i++) {
       if (connections[i].kam_misses == KAL_COUNT) {
-        // TODO: rm debug
-        printf("%s crashed so we closed him\n", connections[i].username);
         close_connection(i);
+        // TODO: add to array of crashed cleints for activity report
       }
     }
 
@@ -124,6 +138,7 @@ void start_server(int portnumber, int nclient) {
           connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
           connections[conn_idx].connected = true;
           gettimeofday(&connections[conn_idx].start, NULL);
+          time(&connections[conn_idx].last_activity);
           pfd[numpolls].fd= connections[conn_idx].fd;
           pfd[numpolls].events= POLLIN;
           pfd[numpolls].revents= 0;
@@ -166,11 +181,12 @@ void start_server(int portnumber, int nclient) {
 }
 
 /* Parses the command sent by the client */
-void parse_cmd(char* buf, int pipenumber) {
+void parse_cmd(char* buf, int pfd_index) {
+  bool activity = false;
   char* args;
   char* cmd = strtok(buf, "|\n");
   char ack[KAL_LENGTH + 1];
-  int index = pipenumber - 2;
+  int index = pfd_index - 2;
 
   snprintf(ack, sizeof(ack), "%c%c%c%c%c", KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR);
   if (strcmp(cmd, "open") == 0) {
@@ -180,34 +196,37 @@ void parse_cmd(char* buf, int pipenumber) {
       printf("username not found. Please try again");
       return;
     }
-    server_open(index, args);
+    activity = server_open(index, args);
   }
   else if (strcmp(cmd, "who") == 0) {
-    server_list_logged(index);
+    activity = server_list_logged(index);
+    time(&connections[index].last_activity);
   }
   else if (strcmp(cmd, "to") == 0) {
     args = strtok(NULL, "\n");
-    server_add_receipient(index, args);
+    activity = server_add_receipient(index, args);
   }
   else if (strcmp(cmd, "<") == 0) {
     args = strtok(NULL, "\n");
-    server_receive_msg(index, args);
+    activity = server_receive_msg(index, args);
   }
   else if (strcmp(cmd, "close") == 0) {
-    server_close_client(index);
+    activity = server_close_client(index);
   }
   else if (strcmp(cmd, "exit") == 0) {
-    server_exit_client(index);
+    activity = server_exit_client(index);
   }
-  // TODO: Change this to keepalive msg
   else if (strcmp(cmd, ack) == 0) {
-    printf("Got an ack\n");
-    connections[index].kam_misses = 0;
+    activity = connections[index].kam_misses = 0;
+  }
+
+  if (activity) {
+    time(&connections[index].last_activity);
   }
 }
 
 /* Server opens a chat session for a user. */
-void server_open(int index, char* username) {
+bool server_open(int index, char* username) {
   char msg_out[MAX_BUF];
   if (username_taken(username)) {
     snprintf(msg_out, sizeof(msg_out), "[server] Error: username is already taken.\n");
@@ -226,10 +245,11 @@ void server_open(int index, char* username) {
     /* // Write server msg to socket */
     write_connected_msg(username);
   }
+  return true;
 }
 
 /* Server returns a list of logged users to the client */
-void server_list_logged(int index) {
+bool server_list_logged(int index) {
   char msg_out[MAX_BUF];
   char buf[MAX_BUF];
 
@@ -248,9 +268,10 @@ void server_list_logged(int index) {
   if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
     print_error(E_WRITE);
   }
+  return true;
 }
 
-void server_add_receipient(int index, char* receipients) {
+bool server_add_receipient(int index, char* receipients) {
   char* tok = strtok(receipients, " ");
   while (tok != NULL) {
     // Increment num of receipients and add to the list
@@ -258,9 +279,10 @@ void server_add_receipient(int index, char* receipients) {
     strcpy(connections[index].receipients[connections[index].num_receipients - 1], tok);
     tok = strtok(NULL, " \n");
   }
+  return true;
 }
 
-void server_receive_msg(int index, char* msg) {
+bool server_receive_msg(int index, char* msg) {
   char msg_out[MAX_BUF];
 
   // Build message
@@ -278,10 +300,11 @@ void server_receive_msg(int index, char* msg) {
       }
     }
   }
+  return true;
 }
 
 /* Server closes the chat session that is initialized by the client */
-void server_close_client(int index) {
+bool server_close_client(int index) {
   char msg_out[MAX_BUF];
 
   memset(msg_out, 0, sizeof(msg_out));
@@ -293,10 +316,12 @@ void server_close_client(int index) {
   }
 
   close_connection(index);
+  return true;
 }
 
-void server_exit_client(int index) {
+bool server_exit_client(int index) {
   close_connection(index);
+  return true;
 }
 
 /* Helper function to close all fds that is connected */
@@ -396,4 +421,28 @@ void free_connection(int index) {
   clear_receipients(index);
   connections[index].kam_misses = 0;
   connections[index].checked_kam = true;
+}
+
+void print_report(int signalnum) {
+  struct tm *tmp;
+  char time_buf[30];
+  char out_buf[MAX_BUF];
+
+  switch(signalnum) {
+    case SIGALRM:
+      printf("Activity Report:\n");
+      for (int i = 0; i < numpolls-2; i++) {
+        tmp = localtime(&connections[i].last_activity);
+        if (strftime(time_buf, sizeof(time_buf), "%c", tmp) == 0) {
+          print_error(E_TIMEBUF);
+        }
+
+        snprintf(out_buf, sizeof(out_buf), "'%s' [sockfd=%i]:%s", connections[i].username,
+                  connections[i].fd, time_buf);
+        printf("%s\n", out_buf);
+      }
+      // TODO: print clients that crashed
+      alarmset = false;
+      break;
+  }
 }

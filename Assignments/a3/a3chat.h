@@ -28,12 +28,14 @@ typedef enum {
   E_SOCKET = 5,
   E_WRITE = 6,
   E_POLL = 7,
+  E_TIMEBUF = 8,
   E_READ = 9,
   E_FAIL_BIND = 10,
   E_INVALID_PORTNUM = 11,
   E_OPENSOCK = 12,
   E_GETHOST = 13,
-  E_CONNECT = 14
+  E_CONNECT = 14,
+  E_SIGACTION = 15
 } error_t;
 
 void print_error(int errorcode);

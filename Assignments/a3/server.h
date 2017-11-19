@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <poll.h>
+#include <time.h>
 
 #define MAX_NAME 30
 #define MAX_RECEIPIENTS 10
@@ -26,16 +27,17 @@ typedef struct conn {
   int kam_misses;
   bool checked_kam;
   struct timeval start;
+  time_t last_activity;
 } t_conn;
 
 void start_server(int portnumber, int nclient);
 void parse_cmd(char* cmd, int index);
-void server_open(int index, char* username);
-void server_list_logged(int index);
-void server_add_receipient(int index, char* receipients);
-void server_receive_msg(int index, char* msg);
-void server_close_client(int index);
-void server_exit_client(int index);
+bool server_open(int index, char* username);
+bool server_list_logged(int index);
+bool server_add_receipient(int index, char* receipients);
+bool server_receive_msg(int index, char* msg);
+bool server_close_client(int index);
+bool server_exit_client(int index);
 void close_allfd(struct pollfd in_fds[], int len);
 void clear_receipients(int index);
 void close_connection(int index);
@@ -44,5 +46,6 @@ void write_connected_msg(char* username);
 void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size);
 void check_kam(int connections_size);
 void free_connection(int index);
+void print_report(int signalnum);
 
 #endif

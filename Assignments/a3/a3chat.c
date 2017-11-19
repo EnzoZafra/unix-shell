@@ -72,6 +72,9 @@ void print_error(int errorcode) {
     case 7:
       fprintf(stderr, "error when polling file descriptors. errno: %i\n", errno);
       break;
+    case 8:
+      fprintf(stderr, "time buffer in print_report too small\n");
+      break;
     case 9:
       fprintf(stderr, "failed to read socket errno: %i\n", errno);
       break;
@@ -89,6 +92,9 @@ void print_error(int errorcode) {
       break;
     case 14:
       fprintf(stderr, "failed to connect to the server\n");
+      break;
+    case 15:
+      fprintf(stderr, "failed to apply signal handler to SIGALRM\n");
       break;
   }
   exit(EXIT_FAILURE);
