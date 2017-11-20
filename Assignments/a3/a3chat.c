@@ -96,6 +96,9 @@ void print_error(int errorcode) {
     case 15:
       fprintf(stderr, "failed to apply signal handler to SIGALRM\n");
       break;
+    case 16:
+      fprintf(stderr, "pfd/conn index conversion failed\n");
+      break;
   }
   exit(EXIT_FAILURE);
 }

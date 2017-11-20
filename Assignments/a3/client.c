@@ -98,8 +98,10 @@ void start_client(int portNum, char* serverAddress) {
         if(sockOUT[j].revents & POLLIN) {
           // Clear buffer
           memset(buf, 0, sizeof(buf));
-          prompt_user = true;
+          // TODO: if there are any weird bugs, uncomment line below and rm line 104
+          /* prompt_user = true; */
           if (read(sockOUT[j].fd, buf, MAX_BUF) > 0) {
+            prompt_user = true;
             // stdin
             if (j == 0) {
               command = strtok(buf, " \n");

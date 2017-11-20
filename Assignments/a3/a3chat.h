@@ -35,7 +35,8 @@ typedef enum {
   E_OPENSOCK = 12,
   E_GETHOST = 13,
   E_CONNECT = 14,
-  E_SIGACTION = 15
+  E_SIGACTION = 15,
+  E_IDX_NOTFOUND = 16
 } error_t;
 
 void print_error(int errorcode);

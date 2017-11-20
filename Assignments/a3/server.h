@@ -17,6 +17,7 @@
 
 #define MAX_NAME 30
 #define MAX_RECEIPIENTS 10
+#define MAX_CRASHES 30
 
 typedef struct conn {
   int fd;
@@ -43,9 +44,13 @@ void clear_receipients(int index);
 void close_connection(int index);
 bool username_taken(char* username);
 void write_connected_msg(char* username);
-void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size);
+void pollfd_conn_defrag(struct pollfd *pfd, int pfd_size);
 void check_kam(int connections_size);
 void free_connection(int index);
 void print_report(int signalnum);
+void add_crashlist(int index);
+int pfdtoconn_idx(int pfd_index);
+int conntopfd_idx(int conn_index);
+int find_freeidx(int nclient);
 
 #endif

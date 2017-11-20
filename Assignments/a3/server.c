@@ -26,13 +26,14 @@
 
 t_conn* connections;
 struct pollfd pfd[NMAX + 2];
-int numpolls;
+int nclient, crashcount, numpolls;
 bool alarmset = false;
+char crashes[MAX_CRASHES][MAX_BUF];
 
 /* Main function for the server, contains the parsing of the client messages by
    polling the socket FDs.
 */
-void start_server(int portnumber, int nclient) {
+void start_server(int portnumber, int numclient) {
   // Add one for stdin and one for managing socket
   int rval, timeout, conn_idx;
   char buf[MAX_OUT_LINE];
@@ -40,6 +41,8 @@ void start_server(int portnumber, int nclient) {
   struct sockaddr_in sockIN, from;
   struct sigaction sa;
   socklen_t fromlen;
+
+  nclient = numclient;
 
   connections = malloc(nclient * sizeof(*connections));
 
@@ -76,6 +79,7 @@ void start_server(int portnumber, int nclient) {
   pfd[1].revents = 0;
 
   for (int i = 0; i < nclient; i++) {
+    pfd[i+2].fd = -1;
     // Build our connections struct array
     memset(connections[i].username, 0, sizeof(connections[i].username));
     connections[i].connected = 0;
@@ -88,6 +92,7 @@ void start_server(int portnumber, int nclient) {
   timeout = 0;
   numpolls = 2;
 
+  // Handle SIGALM by printing the activity report
   sa.sa_handler = &print_report;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
@@ -97,15 +102,19 @@ void start_server(int portnumber, int nclient) {
   }
 
   while (1) {
+
+    // Send a SIGALRM every 15 seconds
     if (!alarmset) {
+      // TODO change this to 15
       alarm(1);
       alarmset = true;
     }
+
     check_kam(nclient);
     for (int i = 0; i < nclient; i++) {
       if (connections[i].kam_misses == KAL_COUNT) {
+        add_crashlist(i);
         close_connection(i);
-        // TODO: add to array of crashed cleints for activity report
       }
     }
 
@@ -133,8 +142,7 @@ void start_server(int portnumber, int nclient) {
           shutdown(errorfd, SHUT_WR);
         }
         else {
-
-          conn_idx = numpolls - 2;
+          conn_idx = find_freeidx(nclient);
           connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
           connections[conn_idx].connected = true;
           gettimeofday(&connections[conn_idx].start, NULL);
@@ -170,10 +178,6 @@ void start_server(int portnumber, int nclient) {
               parse_cmd(cmd, j);
             }
           }
-          else {
-            // TODO: not sure what to do here yet.
-            /* print_error(E_READ); */
-          }
         }
       }
     }
@@ -186,9 +190,11 @@ void parse_cmd(char* buf, int pfd_index) {
   char* args;
   char* cmd = strtok(buf, "|\n");
   char ack[KAL_LENGTH + 1];
+  /* int index = pfdtoconn_idx(pfd_index); */
   int index = pfd_index - 2;
 
   snprintf(ack, sizeof(ack), "%c%c%c%c%c", KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR, KAL_CHAR);
+
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
     if (args == NULL) {
@@ -200,7 +206,6 @@ void parse_cmd(char* buf, int pfd_index) {
   }
   else if (strcmp(cmd, "who") == 0) {
     activity = server_list_logged(index);
-    time(&connections[index].last_activity);
   }
   else if (strcmp(cmd, "to") == 0) {
     args = strtok(NULL, "\n");
@@ -217,6 +222,7 @@ void parse_cmd(char* buf, int pfd_index) {
     activity = server_exit_client(index);
   }
   else if (strcmp(cmd, ack) == 0) {
+    printf("Got ack for %s\n", connections[index].username);
     activity = connections[index].kam_misses = 0;
   }
 
@@ -353,9 +359,11 @@ void clear_receipients(int index) {
 void close_connection(int index) {
   numpolls--;
   shutdown(connections[index].fd, SHUT_WR);
+  /* int tmp = conntopfd_idx(index); */
+  /* pfd[tmp].fd = -1; */
+  pfd[index + 2].fd = -1;
   free_connection(index);
-  pfd[index+2].fd = -1;
-  pollfd_conn_defrag(pfd, connections, NMAX + 2, NMAX);
+  pollfd_conn_defrag(pfd, NMAX);
 }
 
 /* Writes a message to all of the connected users */
@@ -375,23 +383,30 @@ void write_connected_msg(char* username) {
   }
 }
 
-void pollfd_conn_defrag(struct pollfd *pfd, t_conn *conn, int pfd_size, int conn_size) {
-    int new_size = 0;
-    for (int x = 0; x < pfd_size; x++) {
-      if (pfd[x].fd < 0) {
-        continue;
-      }
-      pfd[new_size++] = pfd[x];
+void pollfd_conn_defrag(struct pollfd *pfd, int maxclient) {
+  int new_size = 2;
+  for (int x = 2; x < maxclient + 2; x++) {
+    if (pfd[x].fd < 0) {
+      continue;
+    }
+    pfd[new_size] = pfd[x];
+    if (pfd[new_size].fd == pfd[new_size+1].fd) {
       pfd[x].fd = -1;
     }
-    new_size = 0;
-    for (int y = 0; y < conn_size; y++) {
-      if (conn[y].fd < 0) {
-        continue;
-      }
-      conn[new_size++] = conn[y];
+    new_size++;
+  }
+
+  new_size = 0;
+  for (int y = 0; y < maxclient; y++) {
+    if(connections[y].fd < 0) {
+      continue;
+    }
+    connections[new_size] = connections[y];
+    if (connections[new_size].fd == connections[new_size+1].fd) {
       free_connection(y);
     }
+    new_size++;
+  }
 }
 
 void check_kam(int connections_size) {
@@ -431,18 +446,72 @@ void print_report(int signalnum) {
   switch(signalnum) {
     case SIGALRM:
       printf("Activity Report:\n");
-      for (int i = 0; i < numpolls-2; i++) {
-        tmp = localtime(&connections[i].last_activity);
-        if (strftime(time_buf, sizeof(time_buf), "%c", tmp) == 0) {
-          print_error(E_TIMEBUF);
-        }
+      for (int i = 0; i < nclient; i++) {
+        if (connections[i].connected) {
+          tmp = localtime(&connections[i].last_activity);
+          if (strftime(time_buf, sizeof(time_buf), "%c", tmp) == 0) {
+            print_error(E_TIMEBUF);
+          }
 
-        snprintf(out_buf, sizeof(out_buf), "'%s' [sockfd=%i]:%s", connections[i].username,
-                  connections[i].fd, time_buf);
-        printf("%s\n", out_buf);
+          snprintf(out_buf, sizeof(out_buf), "'%s' [sockfd=%i]:%s", connections[i].username,
+                    connections[i].fd, time_buf);
+          printf("%s\n", out_buf);
+        }
       }
-      // TODO: print clients that crashed
+      for (int j = 0; j < crashcount + 1; j++) {
+        printf("%s\n", crashes[j]);
+      }
       alarmset = false;
       break;
   }
+}
+
+void add_crashlist(int index) {
+  time_t timecrash;
+  struct tm *tmp;
+  char time_buf[30];
+  char out_buf[MAX_BUF];
+
+  time(&timecrash);
+  tmp = localtime(&timecrash);
+  if (strftime(time_buf, sizeof(time_buf), "%c", tmp) == 0) {
+    print_error(E_TIMEBUF);
+  }
+
+  snprintf(out_buf, sizeof(out_buf), "'%s' [sockfd=%i]: loss of keepalive messages detected at %s, connection closed"
+      , connections[index].username, connections[index].fd, time_buf);
+
+  strcpy(crashes[crashcount], out_buf);
+  crashcount++;
+}
+
+/* int pfdtoconn_idx(int pfd_index) { */
+/*   for (int i = 0; i < nclient; i++) { */
+/*     if (pfd[pfd_index].fd == connections[i].fd) { */
+/*       return i; */
+/*     } */
+/*   } */
+/*   printf("pfd[pfd_index].fd: %i", pfd[pfd_index].fd); */
+/*   print_error(E_IDX_NOTFOUND); */
+/*   return -1; */
+/* } */
+
+/* int conntopfd_idx(int conn_index) { */
+/*   for (int i = 0; i < NMAX+2; i++) { */
+/*     if (connections[conn_index].fd == pfd[i].fd) { */
+/*       return i; */
+/*     } */
+/*   } */
+/*   printf("conn[conn_index].fd: %i", connections[conn_index].fd); */
+/*   print_error(E_IDX_NOTFOUND); */
+/*   return -1; */
+/* } */
+
+int find_freeidx(int nclient) {
+  for (int i = 0; i < nclient; i++) {
+    if(connections[i].fd == -1) {
+      return i;
+    }
+  }
+  return -1;
 }
