@@ -49,8 +49,5 @@ void check_kam(int connections_size);
 void free_connection(int index);
 void print_report(int signalnum);
 void add_crashlist(int index);
-int pfdtoconn_idx(int pfd_index);
-int conntopfd_idx(int conn_index);
-int find_freeidx(int nclient);
 
 #endif

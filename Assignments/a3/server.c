@@ -19,12 +19,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "a3chat.h"
 #include "client.h"
 #include "server.h"
 
 t_conn* connections;
+// extra one for managing socket and another extra for STDIN
 struct pollfd pfd[NMAX + 2];
 int nclient, crashcount, numpolls;
 bool alarmset = false;
@@ -34,7 +36,6 @@ char crashes[MAX_CRASHES][MAX_BUF];
    polling the socket FDs.
 */
 void start_server(int portnumber, int numclient) {
-  // Add one for stdin and one for managing socket
   int rval, timeout, conn_idx;
   char buf[MAX_OUT_LINE];
   char* cmd;
@@ -43,7 +44,6 @@ void start_server(int portnumber, int numclient) {
   socklen_t fromlen;
 
   nclient = numclient;
-
   connections = malloc(nclient * sizeof(*connections));
 
   printf("Chat server begins [port = %i] [nclient = %d]\n", portnumber, nclient);
@@ -105,11 +105,11 @@ void start_server(int portnumber, int numclient) {
 
     // Send a SIGALRM every 15 seconds
     if (!alarmset) {
-      // TODO change this to 15
-      alarm(1);
+      alarm(15);
       alarmset = true;
     }
 
+    // Check for keepalive messages, if found KAL_COUNT, close that connection
     check_kam(nclient);
     for (int i = 0; i < nclient; i++) {
       if (connections[i].kam_misses == KAL_COUNT) {
@@ -120,6 +120,9 @@ void start_server(int portnumber, int numclient) {
 
     rval= poll(pfd, numpolls, timeout);
     if (rval == -1) {
+      // EINTR is set to errno when a read() or poll() is interrupted by a signal.
+      // Need this since it will be interrupted by SIGALRM from alarm()
+      if (errno == EINTR) continue;
       print_error(E_POLL);
     }
     else if (rval != 0) {
@@ -142,7 +145,7 @@ void start_server(int portnumber, int numclient) {
           shutdown(errorfd, SHUT_WR);
         }
         else {
-          conn_idx = find_freeidx(nclient);
+          conn_idx = numpolls - 2;
           connections[conn_idx].fd = accept(manage_sock, (struct sockaddr *) &from, &fromlen);
           connections[conn_idx].connected = true;
           gettimeofday(&connections[conn_idx].start, NULL);
@@ -198,7 +201,6 @@ void parse_cmd(char* buf, int pfd_index) {
   if (strcmp(cmd, "open") == 0) {
     args = strtok(NULL, "| \n");
     if (args == NULL) {
-      // TODO: handle no username
       printf("username not found. Please try again");
       return;
     }
@@ -222,8 +224,7 @@ void parse_cmd(char* buf, int pfd_index) {
     activity = server_exit_client(index);
   }
   else if (strcmp(cmd, ack) == 0) {
-    printf("Got ack for %s\n", connections[index].username);
-    activity = connections[index].kam_misses = 0;
+    connections[index].kam_misses = 0;
   }
 
   if (activity) {
@@ -239,10 +240,7 @@ bool server_open(int index, char* username) {
     if(write(connections[index].fd, msg_out, MAX_OUT_LINE) == -1) {
       print_error(E_WRITE);
     }
-    pfd[numpolls].fd = -1;
-    shutdown(connections[index].fd, SHUT_WR);
-    connections[index].connected = false;
-    numpolls--;
+    close_connection(index);
   }
   else {
     // Username is not taken
@@ -301,7 +299,7 @@ bool server_receive_msg(int index, char* msg) {
     for (int j = 0; j < NMAX; j++) {
       if (strcmp(receipient, connections[j].username) == 0) {
         if(write(connections[j].fd, msg_out, MAX_OUT_LINE) == -1) {
-          print_error(E_WRITE);
+          printf("a receipient may have crashed. cannot send message\n");
         }
       }
     }
@@ -359,8 +357,6 @@ void clear_receipients(int index) {
 void close_connection(int index) {
   numpolls--;
   shutdown(connections[index].fd, SHUT_WR);
-  /* int tmp = conntopfd_idx(index); */
-  /* pfd[tmp].fd = -1; */
   pfd[index + 2].fd = -1;
   free_connection(index);
   pollfd_conn_defrag(pfd, NMAX);
@@ -383,6 +379,7 @@ void write_connected_msg(char* username) {
   }
 }
 
+// Function to defragment the pfd and connections arrays
 void pollfd_conn_defrag(struct pollfd *pfd, int maxclient) {
   int new_size = 2;
   for (int x = 2; x < maxclient + 2; x++) {
@@ -409,6 +406,7 @@ void pollfd_conn_defrag(struct pollfd *pfd, int maxclient) {
   }
 }
 
+// Function to check for keepalive messages for every connected client
 void check_kam(int connections_size) {
   struct timeval curr;
   double elapsed;
@@ -429,6 +427,7 @@ void check_kam(int connections_size) {
   }
 }
 
+// Empty a given element in the connections array
 void free_connection(int index) {
   connections[index].fd = -1;
   connections[index].connected = false;
@@ -438,6 +437,7 @@ void free_connection(int index) {
   connections[index].checked_kam = true;
 }
 
+// Signal handler for printing the activity report
 void print_report(int signalnum) {
   struct tm *tmp;
   char time_buf[30];
@@ -446,6 +446,7 @@ void print_report(int signalnum) {
   switch(signalnum) {
     case SIGALRM:
       printf("Activity Report:\n");
+      // Print activity for connected clients
       for (int i = 0; i < nclient; i++) {
         if (connections[i].connected) {
           tmp = localtime(&connections[i].last_activity);
@@ -458,6 +459,7 @@ void print_report(int signalnum) {
           printf("%s\n", out_buf);
         }
       }
+      // Print the activity for users that crashed
       for (int j = 0; j < crashcount + 1; j++) {
         printf("%s\n", crashes[j]);
       }
@@ -466,6 +468,7 @@ void print_report(int signalnum) {
   }
 }
 
+// Add a client that has crashed to the crashed array, to be printed
 void add_crashlist(int index) {
   time_t timecrash;
   struct tm *tmp;
@@ -483,35 +486,4 @@ void add_crashlist(int index) {
 
   strcpy(crashes[crashcount], out_buf);
   crashcount++;
-}
-
-/* int pfdtoconn_idx(int pfd_index) { */
-/*   for (int i = 0; i < nclient; i++) { */
-/*     if (pfd[pfd_index].fd == connections[i].fd) { */
-/*       return i; */
-/*     } */
-/*   } */
-/*   printf("pfd[pfd_index].fd: %i", pfd[pfd_index].fd); */
-/*   print_error(E_IDX_NOTFOUND); */
-/*   return -1; */
-/* } */
-
-/* int conntopfd_idx(int conn_index) { */
-/*   for (int i = 0; i < NMAX+2; i++) { */
-/*     if (connections[conn_index].fd == pfd[i].fd) { */
-/*       return i; */
-/*     } */
-/*   } */
-/*   printf("conn[conn_index].fd: %i", connections[conn_index].fd); */
-/*   print_error(E_IDX_NOTFOUND); */
-/*   return -1; */
-/* } */
-
-int find_freeidx(int nclient) {
-  for (int i = 0; i < nclient; i++) {
-    if(connections[i].fd == -1) {
-      return i;
-    }
-  }
-  return -1;
 }

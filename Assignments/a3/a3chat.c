@@ -67,7 +67,7 @@ void print_error(int errorcode) {
       fprintf(stderr, "failed to create socket\n");
       break;
     case 6:
-      fprintf(stderr, "failed to write to socket errno: %i\n", errno);
+      fprintf(stderr, "failed to write to socket. client may have crashed\n");
       break;
     case 7:
       fprintf(stderr, "error when polling file descriptors. errno: %i\n", errno);

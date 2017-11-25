@@ -43,6 +43,7 @@ void start_client(int portNum, char* serverAddress) {
 
   serv_port = portNum;
 
+  // Get hostent from address string
   hp = gethostbyname(serverAddress);
   if (hp == (struct hostent *) NULL) {
     print_error(E_GETHOST);
@@ -98,8 +99,6 @@ void start_client(int portNum, char* serverAddress) {
         if(sockOUT[j].revents & POLLIN) {
           // Clear buffer
           memset(buf, 0, sizeof(buf));
-          // TODO: if there are any weird bugs, uncomment line below and rm line 104
-          /* prompt_user = true; */
           if (read(sockOUT[j].fd, buf, MAX_BUF) > 0) {
             prompt_user = true;
             // stdin
@@ -167,6 +166,7 @@ void parse_input(char* input) {
   }
 }
 
+// Function to handle the open command
 bool open_chat(char* username) {
   struct sockaddr_in server;
 
