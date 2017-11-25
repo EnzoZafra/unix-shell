@@ -45,11 +45,12 @@ node* search(node** head, int data) {
   // find node to be deleted
   while (tmp->data != data) {
     tmp = tmp->below;
+    if (tmp == NULL) {
+      printf("Did not find node to be deleted\n");
+      return NULL;
+    }
   }
 
-  if (tmp == NULL) {
-    printf("Did not find node to be deleted\n");
-  }
   return tmp;
 }
 
@@ -133,6 +134,12 @@ int main() {
   free(tmp);
   printList(head);
 
+  printf("Try to Delete 696969\n");
+  tmp = search(&head, 696969);
+  del(&head, &tail, tmp);
+  free(tmp);
+  printList(head);
+
   printf("Move 15 to top\n");
   moveToTop(&head, &tail, 15);
   printList(head);
@@ -140,6 +147,89 @@ int main() {
   printf("Delete from tail\n");
   delTail(&head, &tail);
   printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
 
-  printf("Tail value: %i\n", tail->data);
+  printf("Delete 15\n");
+  tmp = search(&head, 15);
+  del(&head, &tail, tmp);
+  free(tmp);
+  printList(head);
+
+  printf("Push 1111 and 2309\n");
+  push(&head, &tail, 1111);
+  push(&head, &tail, 2309);
+  printList(head);
+
+  printf("Delete 10\n");
+  tmp = search(&head, 10);
+  del(&head, &tail, tmp);
+  free(tmp);
+  printList(head);
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
+
+  printf("Delete from tail\n");
+  delTail(&head, &tail);
+  printList(head);
+  if (tail == NULL) {
+    printf("Tail null\n");
+  } else {
+    printf("Tail value: %i\n", tail->data);
+  }
 }
