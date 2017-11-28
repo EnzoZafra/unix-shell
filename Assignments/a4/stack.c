@@ -1,3 +1,11 @@
+/**
+  *
+  * stack.c
+  *
+  * Lorenzo Zafra 1395521
+  * CMPUT 379 Assignment 4
+  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -159,9 +167,17 @@ int main() {
   free(tmp);
   printList(head);
 
+  printf("pop\n");
+  pop(&head);
+  printList(head);
+
   printf("Push 1111 and 2309\n");
   push(&head, &tail, 1111);
   push(&head, &tail, 2309);
+  printList(head);
+
+  printf("pop\n");
+  pop(&head);
   printList(head);
 
   printf("Delete 10\n");

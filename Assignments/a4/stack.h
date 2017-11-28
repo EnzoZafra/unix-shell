@@ -1,3 +1,11 @@
+/**
+  *
+  * stack.h
+  *
+  * Lorenzo Zafra 1395521
+  * CMPUT 379 Assignment 4
+  */
+
 #ifndef stack_h
 #define stack_h
 
