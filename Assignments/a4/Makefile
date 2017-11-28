@@ -2,16 +2,16 @@ CC = gcc
 
 CFLAGS = -g -Wall
 
-TARGET = stack
+TARGET = a4vmsim
 
 all: $(TARGET)
 
-$(TARGET): $(TARGET).c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+$(TARGET): $(TARGET).c stack.c
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c stack.c
 
 clean:
-	$(RM) -rf $(TARGET) client.o server.o $(TARGET).dSYM submit.tar
+	$(RM) -rf $(TARGET) stack.o $(TARGET).dSYM submit.tar
 
 tar:
-	tar -zcvf submit.tar $(TARGET).c a3chat.h client.c client.h server.c server.h Makefile report.pdf
+	tar -zcvf submit.tar $(TARGET).c a4vmsim.h stack.c stack.h Makefile report.pdf
 
