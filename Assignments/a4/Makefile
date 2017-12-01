@@ -7,7 +7,7 @@ TARGET = a4vmsim
 all: $(TARGET)
 
 $(TARGET): $(TARGET).c stack.c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c stack.c
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c stack.c -lm
 
 clean:
 	$(RM) -rf $(TARGET) stack.o $(TARGET).dSYM submit.tar
