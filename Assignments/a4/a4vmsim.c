@@ -63,15 +63,78 @@ int main(int argc, char *argv[]) {
 void simulate(int pagesize, int memsize, strat_t strat) {
   int numframes = memsize/pagesize;
   char ref_string[SYS_BITS/8];
+  oper_t operation = -1;
 
   int page_numbits = SYS_BITS - log2(pagesize);
 
-  while(read(0, ref_string, SYS_BITS/8)) {
+  while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
+    // Order of ref_string from MSB to LSB is:
+    // ref[3] ref[2] ref[1] ref[0]
+    printf("ref_string: %x", ref_string[3] & 0xff);
+    printf("%x", ref_string[2] & 0xff);
+    printf("%x", ref_string[1] & 0xff);
+    printf("%x\n", ref_string[0] & 0xff);
     // do things here
     output->memrefs++;
+    operation = parse_operation(ref_string);
   }
 }
 
+// Parses the reference string for the operation
+oper_t parse_operation(char ref_string[]) {
+  char oper_byte = ref_string[0];
+  // Shift 6 bits to the right since the opcode
+  // resides in the 2 most significant bits
+  char oper_bits = (oper_byte & 0xff) >> 6;
+  switch(oper_bits) {
+    case 0:
+      inc_acc(oper_byte);
+      return INC_ACC;
+      break;
+    case 1:
+      dec_acc(oper_byte);
+      return DEC_ACC;
+      break;
+    case 2:
+      write_op();
+      return WRITE;
+      break;
+    case 3:
+      read_op();
+      return READ;
+      break;
+    default:
+      print_error(E_OP_PARSE);
+      return -1;
+  }
+}
+
+// Increment Accumulator operation
+void inc_acc(char oper_byte) {
+  int value = (oper_byte & 0x3F);
+  output->acc += value;
+  //TODO
+}
+
+// Decrement Accumulator operation
+void dec_acc(char oper_byte) {
+  int value = (oper_byte & 0x3F);
+  output->acc -= value;
+  //TODO
+}
+
+// Write data to page containing reference word
+void write_op() {
+  output->writes++;
+  //TODO
+}
+
+// Read data from page containing reference word
+void read_op() {
+  //TODO
+}
+
+// Prints the output of the simulator
 void print_output(char* strategy, double elapsed) {
   printf("%i references processed using `%s` in %f sec.\n",
       output->memrefs, strategy, elapsed);
@@ -109,8 +172,8 @@ void print_error(int errorcode) {
     case E_STRAT:
       fprintf(stderr, "strategy must be one of [none, mrand, lru, sec]\n");
       break;
-    case 5:
-      fprintf(stderr, "\n");
+    case E_OP_PARSE:
+      fprintf(stderr, "failed to parse the operation\n");
       break;
     case 6:
       fprintf(stderr, "\n");
