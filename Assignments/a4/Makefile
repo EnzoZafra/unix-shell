@@ -7,11 +7,11 @@ TARGET = a4vmsim
 all: $(TARGET)
 
 $(TARGET): $(TARGET).c stack.c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c stack.c -lm
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c stack.c pagetable.c -lm
 
 clean:
 	$(RM) -rf $(TARGET) stack.o $(TARGET).dSYM submit.tar
 
 tar:
-	tar -zcvf submit.tar $(TARGET).c a4vmsim.h stack.c stack.h Makefile report.pdf
+	tar -zcvf submit.tar $(TARGET).c a4vmsim.h stack.c stack.h pagetable.c pagetable.h Makefile report.pdf
 

@@ -15,9 +15,12 @@
 #include <sys/time.h>
 
 #include "stack.h"
+#include "pagetable.h"
 #include "a4vmsim.h"
 
 t_output *output;
+int page_numbits;
+uint32_t* memory;
 
 int main(int argc, char *argv[]) {
   if (argc < 4 || argc > 4) {
@@ -53,18 +56,25 @@ int main(int argc, char *argv[]) {
   struct timeval start, end;
 
   gettimeofday(&start, NULL);
+  init(pagesize, memsize);
   simulate(pagesize, memsize, strategy);
   gettimeofday(&end, NULL);
   double elapsed = end.tv_sec - start.tv_sec;
   print_output(tmpstrat, elapsed);
 }
 
+void init(int pagesize, int memsize) {
+  int numframes = memsize/pagesize;
+  page_numbits = SYS_BITS - log2(pagesize);
+  init_ptable(pow(2, page_numbits));
+
+  memory = malloc(numframes * sizeof(uint32_t));
+}
+
 // Main function for the simulator
 void simulate(int pagesize, int memsize, strat_t strat) {
-  int numframes = memsize/pagesize;
   char ref_string[SYS_BITS/8];
 
-  int page_numbits = SYS_BITS - log2(pagesize);
   // TODO: remove debug
   printf("page_numbits: %i\n", page_numbits);
 
@@ -77,12 +87,12 @@ void simulate(int pagesize, int memsize, strat_t strat) {
     printf("%x\n", ref_string[0] & 0xff);
     // do things here
     output->memrefs++;
-    output->pagefaults += parse_operation(ref_string, page_numbits);
+    output->pagefaults += parse_operation(ref_string);
   }
 }
 
 // Parses the reference string for the operation
-int parse_operation(char ref_string[], int page_numbits) {
+int parse_operation(char ref_string[]) {
   uint32_t oper_byte = ref_string[0];
   // Shift 6 bits to the right since the opcode
   // resides in the 2 most significant bits

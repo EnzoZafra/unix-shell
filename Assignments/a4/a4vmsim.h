@@ -41,7 +41,8 @@ bool ispowerof2(unsigned int x);
 int roundNearMult(int value, int multipleof);
 void simulate(int pagesize, int memsize, strat_t strategy);
 void print_output(char* strategy, double elapsed);
-int parse_operation(char ref_string[], int page_numbits);
+int parse_operation(char ref_string[]);
+void init(int pagesize, int memsize);
 
 void inc_acc(char oper_byte);
 void dec_acc(char oper_byte);
