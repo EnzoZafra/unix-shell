@@ -63,9 +63,10 @@ int main(int argc, char *argv[]) {
 void simulate(int pagesize, int memsize, strat_t strat) {
   int numframes = memsize/pagesize;
   char ref_string[SYS_BITS/8];
-  oper_t operation = -1;
 
   int page_numbits = SYS_BITS - log2(pagesize);
+  // TODO: remove debug
+  printf("page_numbits: %i\n", page_numbits);
 
   while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
     // Order of ref_string from MSB to LSB is:
@@ -76,36 +77,40 @@ void simulate(int pagesize, int memsize, strat_t strat) {
     printf("%x\n", ref_string[0] & 0xff);
     // do things here
     output->memrefs++;
-    operation = parse_operation(ref_string);
+    output->pagefaults += parse_operation(ref_string, page_numbits);
   }
 }
 
 // Parses the reference string for the operation
-oper_t parse_operation(char ref_string[]) {
-  char oper_byte = ref_string[0];
+int parse_operation(char ref_string[], int page_numbits) {
+  uint32_t oper_byte = ref_string[0];
   // Shift 6 bits to the right since the opcode
   // resides in the 2 most significant bits
-  char oper_bits = (oper_byte & 0xff) >> 6;
+  uint32_t oper_bits = (oper_byte & 0xff) >> 6;
+
+  // concat the page number bits
+  uint32_t tmp = ((ref_string[3] & 0xff) << 24)
+                | ((ref_string[2] & 0xff) << 16)
+                | ((ref_string[1] & 0xff) << 8);
+
+  // extract the page number
+  tmp = tmp >> 8;
+  uint32_t pNum = tmp & ((1 << page_numbits) - 1);
+
   switch(oper_bits) {
     case 0:
       inc_acc(oper_byte);
-      return INC_ACC;
-      break;
+      return 0;
     case 1:
       dec_acc(oper_byte);
-      return DEC_ACC;
-      break;
+      return 0;
     case 2:
-      write_op();
-      return WRITE;
-      break;
+      return write_op(pNum);
     case 3:
-      read_op();
-      return READ;
-      break;
+      return read_op(pNum);
     default:
       print_error(E_OP_PARSE);
-      return -1;
+      return 0;
   }
 }
 
@@ -113,24 +118,25 @@ oper_t parse_operation(char ref_string[]) {
 void inc_acc(char oper_byte) {
   int value = (oper_byte & 0x3F);
   output->acc += value;
-  //TODO
 }
 
 // Decrement Accumulator operation
 void dec_acc(char oper_byte) {
   int value = (oper_byte & 0x3F);
   output->acc -= value;
-  //TODO
 }
 
 // Write data to page containing reference word
-void write_op() {
+int write_op(uint32_t pNum) {
   output->writes++;
+  printf("pNum: %i\n", pNum);
+
   //TODO
 }
 
 // Read data from page containing reference word
-void read_op() {
+int read_op(uint32_t pNum) {
+  printf("pNum: %i\n", pNum);
   //TODO
 }
 

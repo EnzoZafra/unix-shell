@@ -6,6 +6,7 @@
   * CMPUT 379 Assignment 4
   */
 
+#include <stdlib.h>
 
 #ifndef a4vmsim_h
 #define a4vmsim_h
@@ -25,13 +26,6 @@ typedef enum {
   SEC
 } strat_t;
 
-typedef enum {
-  INC_ACC = 0,
-  DEC_ACC = 1,
-  WRITE = 2,
-  READ = 3
-} oper_t;
-
 typedef struct output {
   unsigned int memrefs;
   unsigned int writes;
@@ -47,11 +41,11 @@ bool ispowerof2(unsigned int x);
 int roundNearMult(int value, int multipleof);
 void simulate(int pagesize, int memsize, strat_t strategy);
 void print_output(char* strategy, double elapsed);
-oper_t parse_operation(char ref_string[]);
+int parse_operation(char ref_string[], int page_numbits);
 
 void inc_acc(char oper_byte);
 void dec_acc(char oper_byte);
-void write_op();
-void read_op();
+int write_op(uint32_t pnum);
+int read_op(uint32_t pnum);
 
 #endif
