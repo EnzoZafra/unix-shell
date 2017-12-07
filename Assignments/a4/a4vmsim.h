@@ -31,7 +31,7 @@ typedef enum {
 typedef struct output {
   uint32_t memrefs;
   uint32_t writes;
-  uint32_t pagefaults;
+  int pagefaults;
   uint32_t flushes;
   uint32_t acc;
 } t_output;

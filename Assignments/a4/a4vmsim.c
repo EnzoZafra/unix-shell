@@ -59,12 +59,6 @@ int main(int argc, char *argv[]) {
   }
 
   output = (t_output *) calloc(1, sizeof(t_output));
-  output->memrefs = 0;
-  output->writes = 0;
-  output->pagefaults = 0;
-  output->flushes = 0;
-  output->acc = 0;;
-
   struct timeval start, end;
 
   gettimeofday(&start, NULL);
@@ -88,18 +82,18 @@ void simulate(int pagesize, uint32_t memsize, strat_t strat) {
   char ref_string[SYS_BITS/8];
 
   // TODO: remove debug
-  printf("page_numbits: %i\n", page_numbits);
-  int fd = open("test.txt", O_RDONLY);
+  /* printf("page_numbits: %i\n", page_numbits); */
+  /* int fd = open("test.txt", O_RDONLY); */
 
-  while(read(fd, ref_string, SYS_BITS/8)) {
-  /* while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) { */
+  /* while(read(fd, ref_string, SYS_BITS/8)) { */
+  while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
     printf("ref_string: %x", ref_string[3] & 0xff);
     printf("%x", ref_string[2] & 0xff);
     printf("%x", ref_string[1] & 0xff);
     printf("%x\n", ref_string[0] & 0xff);
-    // do things here
+
     output->memrefs++;
     output->pagefaults += parse_operation(ref_string, strat);
   }
@@ -186,11 +180,12 @@ int write_op(uint32_t pNum, strat_t strat) {
 int read_op(uint32_t pNum, strat_t strat) {
   printf("pNum: %i\n", pNum);
   //TODO
+  return 0;
 }
 
 uint32_t check_pmem(uint32_t v_addr) {
-  printf("len: %i\n", pmem_len);
-  printf("v_addr: %i\n", v_addr);
+  /* printf("len: %i\n", pmem_len); */
+  /* printf("v_addr: %i\n", v_addr); */
   for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
       printf("returned index: %i\n", i);
