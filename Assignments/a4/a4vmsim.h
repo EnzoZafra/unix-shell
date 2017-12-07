@@ -7,6 +7,7 @@
   */
 
 #include <stdlib.h>
+#include "pagetable.h"
 
 #ifndef a4vmsim_h
 #define a4vmsim_h
@@ -16,7 +17,8 @@ typedef enum {
   E_PAGESIZE,
   E_MEMSIZE,
   E_STRAT,
-  E_OP_PARSE
+  E_OP_PARSE,
+  E_PMEM_OVERFLOW
 } error_t;
 
 typedef enum {
@@ -27,23 +29,26 @@ typedef enum {
 } strat_t;
 
 typedef struct output {
-  unsigned int memrefs;
-  unsigned int writes;
-  unsigned int pagefaults;
-  unsigned int flushes;
-  unsigned int acc;
+  uint32_t memrefs;
+  uint32_t writes;
+  uint32_t pagefaults;
+  uint32_t flushes;
+  uint32_t acc;
 } t_output;
 
 #define SYS_BITS 32
+extern uint32_t* memory;
 
 void print_error(int errorcode);
-bool ispowerof2(unsigned int x);
+bool ispowerof2(uint32_t x);
 uint32_t roundNearMult(uint32_t value, int multipleof);
 void simulate(int pagesize, uint32_t memsize, strat_t strategy);
 void print_output(char* strategy, double elapsed);
 int parse_operation(char ref_string[], strat_t strat);
 void init(int pagesize, uint32_t memsize);
-bool check_pmem(uint32_t v_addr);
+uint32_t check_pmem(uint32_t v_addr);
+void evict_page(uint32_t index, t_ptentry* page);
+void load_page(uint32_t avail_index, t_ptentry* page);
 void handle_pfault(strat_t strat);
 
 void inc_acc(char oper_byte);

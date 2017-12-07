@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <math.h>
 #include <sys/time.h>
+//TODO: remove below
+#include <fcntl.h>
 
 #include "stack.h"
 #include "strategy.h"
@@ -22,6 +24,9 @@
 t_output *output;
 int page_numbits;
 uint32_t* memory;
+uint32_t pmem_len = 0;
+uint32_t last3_refs[3];
+uint32_t numframes;
 
 int main(int argc, char *argv[]) {
   if (argc < 4 || argc > 4) {
@@ -54,6 +59,12 @@ int main(int argc, char *argv[]) {
   }
 
   output = (t_output *) calloc(1, sizeof(t_output));
+  output->memrefs = 0;
+  output->writes = 0;
+  output->pagefaults = 0;
+  output->flushes = 0;
+  output->acc = 0;;
+
   struct timeval start, end;
 
   gettimeofday(&start, NULL);
@@ -65,7 +76,7 @@ int main(int argc, char *argv[]) {
 }
 
 void init(int pagesize, uint32_t memsize) {
-  uint32_t numframes = memsize/pagesize;
+  numframes = memsize/pagesize;
   page_numbits = SYS_BITS - log2(pagesize);
 
   init_ptable(pow(2, page_numbits));
@@ -78,8 +89,10 @@ void simulate(int pagesize, uint32_t memsize, strat_t strat) {
 
   // TODO: remove debug
   printf("page_numbits: %i\n", page_numbits);
+  int fd = open("test.txt", O_RDONLY);
 
-  while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
+  while(read(fd, ref_string, SYS_BITS/8)) {
+  /* while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) { */
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
     printf("ref_string: %x", ref_string[3] & 0xff);
@@ -142,12 +155,28 @@ int write_op(uint32_t pNum, strat_t strat) {
   output->writes++;
   printf("pNum: %i\n", pNum);
 
-  //TODO
-  // If there is a page fault, handle
-  if (!check_pmem(pNum)) {
-    handle_pfault(strat);
+  t_ptentry* ref_page = getEntry(pNum);
+  ref_page->modified = 1;
 
+  // If there is a page fault, handle
+  if (check_pmem(pNum) == -1 && strat != NONE) {
+    // If phys memory is full, need to evict a page
+    if (pmem_len == numframes) {
+      handle_pfault(strat);
+    }
+    // if not full, just load the page in
+    else if (pmem_len < numframes) {
+      load_page(pmem_len, ref_page);
+    }
+    else {
+      print_error(E_PMEM_OVERFLOW);
+    }
     return 1;
+  }
+
+  // TODO: debug
+  if (ref_page->valid == 0) {
+    printf("non valid page referenced at end of write\n");
   }
 
   return 0;
@@ -159,14 +188,45 @@ int read_op(uint32_t pNum, strat_t strat) {
   //TODO
 }
 
-bool check_pmem(uint32_t v_addr) {
-  uint32_t len = sizeof(memory) / sizeof(uint32_t);
-  for (int i = 0; i < len; i++) {
+uint32_t check_pmem(uint32_t v_addr) {
+  printf("len: %i\n", pmem_len);
+  printf("v_addr: %i\n", v_addr);
+  for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
-      return true;
+      printf("returned index: %i\n", i);
+      return i;
     }
   }
-  return false;
+  return -1;
+}
+
+void evict_page(uint32_t pmem_idx, t_ptentry* pageEvicted) {
+  // TODO: REMOVE DEBUG
+  if(pageEvicted->valid == 0) {
+    printf("EVICTING A NON-VALID PAGE");
+  }
+
+  // If a page has been modified since it's brought in, inc flushes
+  if(pageEvicted->modified == 1) {
+    output->flushes++;
+  }
+
+  memory[pmem_idx] = 0;
+  pageEvicted->valid = 0;
+  pageEvicted->reference_bit = 0;
+  pageEvicted->modified = 0;
+  pageEvicted->physical_addr = -1;
+  pmem_len--;
+}
+
+void load_page(uint32_t avail_index, t_ptentry* page) {
+  memory[avail_index] = page->virtual_addr;
+  page->physical_addr = avail_index;
+  page->valid = 1;
+  pmem_len++;
+
+  printf("page->vaddr %i\n", page->virtual_addr);
+  printf("page->valid: %i\n", page->valid);
 }
 
 void handle_pfault(strat_t strat) {
@@ -175,7 +235,7 @@ void handle_pfault(strat_t strat) {
       none_handler();
       break;
     case MRAND:
-      mrand_handler();
+      mrand_handler(pmem_len);
       break;
     case LRU:
       lru_handler();
@@ -196,7 +256,7 @@ void print_output(char* strategy, double elapsed) {
 }
 
 // Checks if value is a power of two
-bool ispowerof2(unsigned int x) {
+bool ispowerof2(uint32_t x) {
    return x && !(x & (x - 1));
 }
 
@@ -227,8 +287,8 @@ void print_error(int errorcode) {
     case E_OP_PARSE:
       fprintf(stderr, "failed to parse the operation\n");
       break;
-    case 6:
-      fprintf(stderr, "\n");
+    case E_PMEM_OVERFLOW:
+      fprintf(stderr, "physical memory overflow\n");
       break;
     case 7:
       fprintf(stderr, "\n");
