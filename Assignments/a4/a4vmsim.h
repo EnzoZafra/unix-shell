@@ -38,15 +38,17 @@ typedef struct output {
 
 void print_error(int errorcode);
 bool ispowerof2(unsigned int x);
-int roundNearMult(int value, int multipleof);
-void simulate(int pagesize, int memsize, strat_t strategy);
+uint32_t roundNearMult(uint32_t value, int multipleof);
+void simulate(int pagesize, uint32_t memsize, strat_t strategy);
 void print_output(char* strategy, double elapsed);
-int parse_operation(char ref_string[]);
-void init(int pagesize, int memsize);
+int parse_operation(char ref_string[], strat_t strat);
+void init(int pagesize, uint32_t memsize);
+bool check_pmem(uint32_t v_addr);
+void handle_pfault(strat_t strat);
 
 void inc_acc(char oper_byte);
 void dec_acc(char oper_byte);
-int write_op(uint32_t pnum);
-int read_op(uint32_t pnum);
+int write_op(uint32_t pnum, strat_t strat);
+int read_op(uint32_t pnum, strat_t strat);
 
 #endif

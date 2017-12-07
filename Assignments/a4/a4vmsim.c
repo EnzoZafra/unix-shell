@@ -15,6 +15,7 @@
 #include <sys/time.h>
 
 #include "stack.h"
+#include "strategy.h"
 #include "pagetable.h"
 #include "a4vmsim.h"
 
@@ -32,7 +33,7 @@ int main(int argc, char *argv[]) {
     print_error(E_PAGESIZE);
   }
 
-  int memsize = atoi(argv[2]);
+  uint32_t memsize = atoi(argv[2]);
   if (memsize <= 0) {
     print_error(E_MEMSIZE);
   }
@@ -63,16 +64,16 @@ int main(int argc, char *argv[]) {
   print_output(tmpstrat, elapsed);
 }
 
-void init(int pagesize, int memsize) {
-  int numframes = memsize/pagesize;
+void init(int pagesize, uint32_t memsize) {
+  uint32_t numframes = memsize/pagesize;
   page_numbits = SYS_BITS - log2(pagesize);
-  init_ptable(pow(2, page_numbits));
 
+  init_ptable(pow(2, page_numbits));
   memory = malloc(numframes * sizeof(uint32_t));
 }
 
 // Main function for the simulator
-void simulate(int pagesize, int memsize, strat_t strat) {
+void simulate(int pagesize, uint32_t memsize, strat_t strat) {
   char ref_string[SYS_BITS/8];
 
   // TODO: remove debug
@@ -87,12 +88,12 @@ void simulate(int pagesize, int memsize, strat_t strat) {
     printf("%x\n", ref_string[0] & 0xff);
     // do things here
     output->memrefs++;
-    output->pagefaults += parse_operation(ref_string);
+    output->pagefaults += parse_operation(ref_string, strat);
   }
 }
 
 // Parses the reference string for the operation
-int parse_operation(char ref_string[]) {
+int parse_operation(char ref_string[], strat_t strat) {
   uint32_t oper_byte = ref_string[0];
   // Shift 6 bits to the right since the opcode
   // resides in the 2 most significant bits
@@ -115,9 +116,9 @@ int parse_operation(char ref_string[]) {
       dec_acc(oper_byte);
       return 0;
     case 2:
-      return write_op(pNum);
+      return write_op(pNum, strat);
     case 3:
-      return read_op(pNum);
+      return read_op(pNum, strat);
     default:
       print_error(E_OP_PARSE);
       return 0;
@@ -137,17 +138,52 @@ void dec_acc(char oper_byte) {
 }
 
 // Write data to page containing reference word
-int write_op(uint32_t pNum) {
+int write_op(uint32_t pNum, strat_t strat) {
   output->writes++;
   printf("pNum: %i\n", pNum);
 
   //TODO
+  // If there is a page fault, handle
+  if (!check_pmem(pNum)) {
+    handle_pfault(strat);
+
+    return 1;
+  }
+
+  return 0;
 }
 
 // Read data from page containing reference word
-int read_op(uint32_t pNum) {
+int read_op(uint32_t pNum, strat_t strat) {
   printf("pNum: %i\n", pNum);
   //TODO
+}
+
+bool check_pmem(uint32_t v_addr) {
+  uint32_t len = sizeof(memory) / sizeof(uint32_t);
+  for (int i = 0; i < len; i++) {
+    if(memory[i] == v_addr) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void handle_pfault(strat_t strat) {
+  switch (strat) {
+    case NONE:
+      none_handler();
+      break;
+    case MRAND:
+      mrand_handler();
+      break;
+    case LRU:
+      lru_handler();
+      break;
+    case SEC:
+      sec_handler();
+      break;
+  }
 }
 
 // Prints the output of the simulator
@@ -165,8 +201,8 @@ bool ispowerof2(unsigned int x) {
 }
 
 // Rounds up the value to the nearest multiple of 'multipleof'
-int roundNearMult(int value, int multipleof) {
-  int tmp = value % multipleof;
+uint32_t roundNearMult(uint32_t value, int multipleof) {
+  uint32_t tmp = value % multipleof;
   if (tmp == 0) {
     return value;
   }

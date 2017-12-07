@@ -21,7 +21,10 @@ typedef struct ptentry {
 } t_ptentry;
 
 void init_ptable(int size);
-t_ptentry getEntry(unsigned long virtual_addr);
-bool swap(unsigned long v_addr1, unsigned long v_addr2);
+t_ptentry* initEntry(uint32_t v_addr);
+t_ptentry* getEntry(uint32_t virtual_addr);
+uint32_t ptable_len();
+void addEntry(uint32_t virtual_addr);
+bool swap(uint32_t v_addr1, uint32_t v_addr2);
 
 #endif
