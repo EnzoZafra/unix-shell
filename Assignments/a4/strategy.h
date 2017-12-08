@@ -11,10 +11,10 @@
 #ifndef strategy_h
 #define strategy_h
 
-void none_handler();
-void mrand_handler();
-void lru_handler();
-void sec_handler();
+uint32_t none_handler();
+uint32_t mrand_handler();
+uint32_t lru_handler();
+uint32_t sec_handler();
 uint32_t limited_rand(uint32_t limit);
 
 #endif

@@ -16,12 +16,13 @@
 
 
 // "none" strategy
-void none_handler() {
+uint32_t none_handler() {
   // TODO
+  return -1;
 }
 
 // "mrand" strategy
-void mrand_handler(uint32_t numframes) {
+uint32_t mrand_handler(uint32_t numframes) {
   uint32_t pmem_idx = -1, v_addr = -1;
   bool findingEvict = true;
 
@@ -30,6 +31,7 @@ void mrand_handler(uint32_t numframes) {
 
   while(findingEvict) {
     pmem_idx = limited_rand(numframes);
+    printf("pmem_idx rand: %i\n", pmem_idx);
     v_addr = memory[pmem_idx];
 
     if (v_addr == -1) {
@@ -42,26 +44,29 @@ void mrand_handler(uint32_t numframes) {
     }
   }
 
-  t_ptentry* evictedPage = getEntry(v_addr);
-  evict_page(pmem_idx, &evictedPage);
+  uint32_t evictedPage = getEntry(v_addr);
+  evict_page(pmem_idx, evictedPage);
+  return pmem_idx;
 }
 
 // "lru" strategy
-void lru_handler() {
+uint32_t lru_handler() {
   // Least recently used will be in tail of stack
   uint32_t v_addr = delTail(&head, &tail);
-  t_ptentry* evictedPage = getEntry(v_addr);
+  uint32_t evictedPage = getEntry(v_addr);
 
   uint32_t pmem_idx = check_pmem(v_addr);
   if (pmem_idx == -1) {
     print_error(E_NOT_IN_PMEM);
   }
-  evict_page(pmem_idx, &evictedPage);
+  evict_page(pmem_idx, evictedPage);
+  return pmem_idx;
 }
 
 // "sec" strategy
-void sec_handler() {
+uint32_t sec_handler() {
   // TODO
+  return -1;
 }
 
 uint32_t limited_rand(uint32_t limit)

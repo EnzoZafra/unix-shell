@@ -20,9 +20,9 @@ typedef struct ptentry {
   uint32_t physical_addr;
 } t_ptentry;
 
-void init_ptable(int size);
-t_ptentry* initEntry(uint32_t v_addr);
-t_ptentry* getEntry(uint32_t virtual_addr);
+void init_ptable(uint32_t size);
+uint32_t initEntry(uint32_t v_addr);
+uint32_t getEntry(uint32_t virtual_addr);
 uint32_t ptable_len();
 void addEntry(uint32_t virtual_addr);
 bool swap(uint32_t v_addr1, uint32_t v_addr2);

@@ -15,18 +15,20 @@
 t_ptentry** pagetable;
 uint32_t len;
 
-t_ptentry* initEntry(uint32_t v_addr) {
-  ((t_ptentry*)pagetable[len])->virtual_addr = v_addr;
-  t_ptentry* out = (t_ptentry*)pagetable[len];
+uint32_t initEntry(uint32_t v_addr) {
+  uint32_t tmp = len;
+  pagetable[len]->virtual_addr = v_addr;
   len++;
-  return out;
+  //TODO:
+  printf("not found in ptable, new index: %i\n", tmp);
+  return tmp;
 }
 
-void init_ptable(int max_size) {
+void init_ptable(uint32_t max_size) {
   pagetable = (t_ptentry**)malloc(max_size * sizeof(*pagetable));
   /* pagetable = (t_ptentry**)malloc(max_size, sizeof(*pagetable)); */
 
-  for (int i = 0; i < max_size; i++) {
+  for (uint32_t i = 0; i < max_size; i++) {
     t_ptentry* tmp = (t_ptentry*) malloc(sizeof(t_ptentry*));
     tmp->valid = 0;
     tmp->reference_bit = 0;
@@ -46,11 +48,15 @@ uint32_t ptable_len() {
   return len;
 }
 
-t_ptentry* getEntry(uint32_t v_addr) {
+uint32_t getEntry(uint32_t v_addr) {
+  if (v_addr == 0) {
+    printf("ZERO HERE \n");
+    exit(1);
+  }
   for (int i = 0; i < len; i++) {
-    t_ptentry* out = (t_ptentry*)pagetable[i];
+    t_ptentry* out = pagetable[i];
     if (out->virtual_addr == v_addr) {
-      return out;
+      return i;
     }
   }
   // If not found, add the page entry into the table

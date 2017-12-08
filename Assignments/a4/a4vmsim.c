@@ -21,6 +21,7 @@
 #include "pagetable.h"
 #include "a4vmsim.h"
 
+extern t_ptentry** pagetable;
 t_output *output;
 int page_numbits;
 uint32_t* memory;
@@ -71,10 +72,18 @@ int main(int argc, char *argv[]) {
   double elapsed = end.tv_sec - start.tv_sec;
   print_output(tmpstrat, elapsed);
 
-  // TODO: remove debugging
-  if(strategy == LRU) {
-    printList(head);
-  }
+  /* int extern len; */
+  /* printf("################################\n"); */
+  /* for (int i = 0; i < len; i++) { */
+  /*   printf("entry index: %i\n", i); */
+  /*   printf("v_addr: %i\n", pagetable[i]->virtual_addr); */
+  /*   printf("p_addr: %i\n", pagetable[i]->physical_addr); */
+  /*   printf("valid: %i\n", pagetable[i]->valid); */
+  /*   printf("reference_bit: %i\n", pagetable[i]->reference_bit); */
+  /*   printf("modified: %i\n", pagetable[i]->modified); */
+  /*   printf("\n"); */
+  /* } */
+  /* printf("################################\n"); */
 }
 
 void init(int pagesize, uint32_t memsize) {
@@ -96,8 +105,8 @@ void simulate(int pagesize, uint32_t memsize, strat_t strat) {
   /* printf("page_numbits: %i\n", page_numbits); */
   int fd = open("writetest.txt", O_RDONLY);
 
-  while(read(fd, ref_string, SYS_BITS/8)) {
-  /* while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) { */
+  /* while(read(fd, ref_string, SYS_BITS/8)) { */
+  while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
     printf("\nref_string: %x", ref_string[3] & 0xff);
@@ -162,19 +171,21 @@ int write_op(uint32_t pNum, strat_t strat) {
   output->writes++;
   printf("pNum: %i\n", pNum);
 
-  t_ptentry* ref_page = getEntry(pNum);
+  uint32_t refpage_idx = getEntry(pNum);
+  t_ptentry* ref_page = pagetable[refpage_idx];
   ref_page->modified = 1;
 
   // If there is a page fault, handle
   if (check_pmem(pNum) == -1 && strat != NONE) {
     // If phys memory is full, need to evict a page
+    printf("pmem_len: %i ||| numframes: %i \n", pmem_len, numframes);
     if (pmem_len == numframes) {
-      handle_pfault(strat);
-      load_page(pmem_len, &ref_page, strat);
+      uint32_t freed = handle_pfault(strat);
+      load_page(freed, refpage_idx, strat);
     }
     // if not full, just load the page in
     else if (pmem_len < numframes) {
-      load_page(pmem_len, &ref_page, strat);
+      load_page(pmem_len, refpage_idx, strat);
     }
     else {
       print_error(E_PMEM_OVERFLOW);
@@ -229,15 +240,17 @@ uint32_t check_pmem(uint32_t v_addr) {
   return -1;
 }
 
-void evict_page(uint32_t pmem_idx, t_ptentry** pageEvicted) {
+void evict_page(uint32_t pmem_idx, uint32_t page_idx) {
+  t_ptentry* pageEvicted = pagetable[page_idx];
 
   // TODO: REMOVE DEBUG
   printf("page evict info: \n");
-  printf("page->v_addr: %i\n", ((t_ptentry*)pageEvicted)->virtual_addr);
-  printf("page->p_addr: %i\n", ((t_ptentry*)pageEvicted)->physical_addr);
-  printf("page->valid: %i\n", ((t_ptentry*)pageEvicted)->valid);
-  printf("page->ref_bit: %i\n", ((t_ptentry*)pageEvicted)->reference_bit);
-  printf("page->modified: %i\n", ((t_ptentry*)pageEvicted)->modified);
+  printf("pagetable index: %i\n", page_idx);
+  printf("page->v_addr: %i\n", pageEvicted->virtual_addr);
+  printf("page->p_addr: %i\n", pageEvicted->physical_addr);
+  printf("page->valid: %i\n", pageEvicted->valid);
+  printf("page->ref_bit: %i\n", pageEvicted->reference_bit);
+  printf("page->modified: %i\n", pageEvicted->modified);
 
   /* if(pageEvicted->valid == 0) { */
   /*   printf("EVICTING A NON-VALID PAGE"); */
@@ -246,49 +259,47 @@ void evict_page(uint32_t pmem_idx, t_ptentry** pageEvicted) {
   /* } */
 
   // If a page has been modified since it's brought in, inc flushes
-  if(((t_ptentry*)pageEvicted)->modified == 1) {
+  if(pageEvicted->modified == 1) {
     output->flushes++;
   }
 
-  memory[pmem_idx] = 0;
-  ((t_ptentry*)pageEvicted)->valid = 0;
-  ((t_ptentry*)pageEvicted)->reference_bit = 0;
-  ((t_ptentry*)pageEvicted)->modified = 0;
-  ((t_ptentry*)pageEvicted)->physical_addr = -1;
+  memory[pmem_idx] = -1;
+  pageEvicted->valid = 0;
+  pageEvicted->reference_bit = 0;
+  pageEvicted->modified = 0;
+  pageEvicted->physical_addr = -1;
   pmem_len--;
 }
 
-void load_page(uint32_t avail_index, t_ptentry** page, strat_t strat) {
-  memory[avail_index] = ((t_ptentry*)page)->virtual_addr;
-  ((t_ptentry*)page)->physical_addr = avail_index;
-  ((t_ptentry*)page)->valid = 1;
+void load_page(uint32_t avail_index, uint32_t page_idx, strat_t strat) {
+  t_ptentry* page = pagetable[page_idx];
+
+  memory[avail_index] = page->virtual_addr;
+  page->physical_addr = avail_index;
+  page->valid = 1;
   pmem_len++;
 
   // If LRU strategy, keep a stack of page numbers
   if (strat == LRU) {
-    push(&head, &tail, ((t_ptentry*)page)->virtual_addr);
+    push(&head, &tail, page->virtual_addr);
   }
-
-  printf("During load: \n");
-  printf("page->vaddr %i\n", ((t_ptentry*)page)->virtual_addr);
-  printf("page->valid: %i\n", ((t_ptentry*)page)->valid);
 }
 
-void handle_pfault(strat_t strat) {
+uint32_t handle_pfault(strat_t strat) {
   switch (strat) {
     case NONE:
-      none_handler();
+      return none_handler();
       break;
     case MRAND:
-      mrand_handler(pmem_len);
+      return mrand_handler(pmem_len);
       break;
     case LRU:
       //TODO
       printf("LRU %i\n", LRU);
-      lru_handler();
+      return lru_handler();
       break;
     case SEC:
-      sec_handler();
+      return sec_handler();
       break;
   }
 }

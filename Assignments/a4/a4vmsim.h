@@ -52,9 +52,9 @@ void print_output(char* strategy, double elapsed);
 int parse_operation(char ref_string[], strat_t strat);
 void init(int pagesize, uint32_t memsize);
 uint32_t check_pmem(uint32_t v_addr);
-void evict_page(uint32_t index, t_ptentry** page);
-void load_page(uint32_t avail_index, t_ptentry** page, strat_t strat);
-void handle_pfault(strat_t strat);
+void evict_page(uint32_t index, uint32_t page_idx);
+void load_page(uint32_t avail_index, uint32_t page_idx, strat_t strat);
+uint32_t handle_pfault(strat_t strat);
 
 void inc_acc(char oper_byte);
 void dec_acc(char oper_byte);
