@@ -175,44 +175,8 @@ int write_op(uint32_t pNum, strat_t strat) {
   t_ptentry* ref_page = pagetable[refpage_idx];
   ref_page->modified = 1;
 
-  // If there is a page fault, handle
-  if (check_pmem(pNum) == -1 && strat != NONE) {
-    // If phys memory is full, need to evict a page
-    printf("pmem_len: %i ||| numframes: %i \n", pmem_len, numframes);
-    if (pmem_len == numframes) {
-      uint32_t freed = handle_pfault(strat);
-      load_page(freed, refpage_idx, strat);
-    }
-    // if not full, just load the page in
-    else if (pmem_len < numframes) {
-      load_page(pmem_len, refpage_idx, strat);
-    }
-    else {
-      print_error(E_PMEM_OVERFLOW);
-    }
-    // TODO:
-    printf("After load: \n");
-    printf("page->vaddr %i\n", ref_page->virtual_addr);
-    printf("page->valid: %i\n", ref_page->valid);
-    returnval = 1;
-  }
+  returnval = check_fault(refpage_idx, strat);
 
-  // if LRU, most recently referenced page must be moved to top
-  if (strat == LRU) {
-    moveToTop(&head, &tail, pNum);
-  }
-
-  // if MRAND, the stack is being used to hold the last k=3 references.
-  else if (strat == MRAND) {
-    // if we already have 3 references, remove the last one
-    if (stack_size() > 3) {
-      print_error(E_MRAND_3REFS);
-    }
-    else if (stack_size() == 3) {
-      delTail(&head, &tail);
-    }
-    push(&head, &tail, pNum);
-  }
   // TODO: debug
   if (ref_page->valid == 0) {
     printf("non valid page referenced at end of write\n");
@@ -228,12 +192,49 @@ int read_op(uint32_t pNum, strat_t strat) {
   return 0;
 }
 
+int check_fault(uint32_t refpage_idx, strat_t strat) {
+  int returnval = 0;
+  uint32_t pNum = pagetable[refpage_idx]->virtual_addr;
+  // If there is a page fault, handle
+  if (check_pmem(pNum) == -1 && strat != NONE) {
+    // If phys memory is full, need to evict a page
+    if (pmem_len == numframes) {
+      uint32_t freed = handle_pfault(strat);
+      load_page(freed, refpage_idx, strat);
+    }
+    // if not full, just load the page in
+    else if (pmem_len < numframes) {
+      load_page(pmem_len, refpage_idx, strat);
+    }
+    else {
+      print_error(E_PMEM_OVERFLOW);
+    }
+    returnval = 1;
+  }
+  // if LRU, most recently referenced page must be moved to top
+  if (strat == LRU) {
+    moveToTop(&head, &tail, pNum);
+  }
+  // if MRAND, the stack is being used to hold the last k=3 references.
+  else if (strat == MRAND) {
+    // if we already have 3 references, remove the last one
+    if (stack_size() == 3) {
+      delTail(&head, &tail);
+    }
+    else if (stack_size() > 3) {
+      print_error(E_MRAND_3REFS);
+    }
+    push(&head, &tail, pNum);
+  }
+  return returnval;
+}
+
 uint32_t check_pmem(uint32_t v_addr) {
   /* printf("len: %i\n", pmem_len); */
   /* printf("v_addr: %i\n", v_addr); */
   for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
-      printf("------------- returned index: %i ---------\n", i);
+      printf("----------still in mem: index: %i ---------\n", i);
       return i;
     }
   }
@@ -243,18 +244,19 @@ uint32_t check_pmem(uint32_t v_addr) {
 void evict_page(uint32_t pmem_idx, uint32_t page_idx) {
   t_ptentry* pageEvicted = pagetable[page_idx];
 
-  // TODO: REMOVE DEBUG
-  printf("page evict info: \n");
-  printf("pagetable index: %i\n", page_idx);
-  printf("page->v_addr: %i\n", pageEvicted->virtual_addr);
-  printf("page->p_addr: %i\n", pageEvicted->physical_addr);
-  printf("page->valid: %i\n", pageEvicted->valid);
-  printf("page->ref_bit: %i\n", pageEvicted->reference_bit);
-  printf("page->modified: %i\n", pageEvicted->modified);
+  /* // TODO: REMOVE DEBUG */
+  /* printf("page evict info: \n"); */
+  /* printf("pagetable index: %i\n", page_idx); */
+  /* printf("page->v_addr: %i\n", pageEvicted->virtual_addr); */
+  /* printf("page->p_addr: %i\n", pageEvicted->physical_addr); */
+  /* printf("page->valid: %i\n", pageEvicted->valid); */
+  /* printf("page->ref_bit: %i\n", pageEvicted->reference_bit); */
+  /* printf("page->modified: %i\n", pageEvicted->modified); */
 
-  /* if(pageEvicted->valid == 0) { */
-  /*   printf("EVICTING A NON-VALID PAGE"); */
-  /* } else { */
+  if(pageEvicted->valid == 0) {
+    printf("EVICTING A NON-VALID PAGE");
+  }
+  /* else { */
   /*   printf("------ EVICTING VALID PAGE -----"); */
   /* } */
 
