@@ -7,6 +7,7 @@
   */
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifndef strategy_h
 #define strategy_h

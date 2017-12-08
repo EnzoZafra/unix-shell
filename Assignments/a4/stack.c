@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #include "stack.h"
@@ -100,16 +101,16 @@ uint32_t delTail(node** head, node** tail) {
 }
 
 // This function prints contents of linked list starting from the given node
-void printList(node* root) {
-  /* printf("\nTraversal in down direction \n"); */
-  node* last;
-  while (root != NULL) {
-    printf(" %d ", root->data);
-    last = root;
-    root = root->below;
-  }
-  printf("\n");
-}
+/* void printList(node* root) { */
+/*   /1* printf("\nTraversal in down direction \n"); *1/ */
+/*   node* last; */
+/*   while (root != NULL) { */
+/*     printf(" %d ", root->data); */
+/*     last = root; */
+/*     root = root->below; */
+/*   } */
+/*   printf("\n"); */
+/* } */
 
 // moves a node from a middle of the stack to the top
 void moveToTop(node** head, node** tail, uint32_t data) {

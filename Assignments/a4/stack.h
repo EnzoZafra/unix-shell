@@ -7,6 +7,7 @@
   */
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifndef stack_h
 #define stack_h

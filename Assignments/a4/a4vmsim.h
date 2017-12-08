@@ -7,6 +7,7 @@
   */
 
 #include <stdlib.h>
+#include <stdint.h>
 #include "pagetable.h"
 #include "stack.h"
 
@@ -49,7 +50,7 @@ void print_error(int errorcode);
 bool ispowerof2(uint32_t x);
 uint32_t roundNearMult(uint32_t value, int multipleof);
 void simulate(int pagesize, uint32_t memsize);
-void print_output(char* strategy, double elapsed);
+void print_output(char* strategy, struct timeval *result);
 int parse_operation(char ref_string[]);
 void init(int pagesize, uint32_t memsize);
 uint32_t check_pmem(uint32_t v_addr);
@@ -57,6 +58,7 @@ int check_fault(uint32_t refpage_idx);
 void evict_page(uint32_t index, uint32_t page_idx);
 void load_page(uint32_t avail_index, uint32_t page_idx);
 uint32_t handle_pfault();
+int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval *t1);
 
 int inc_acc(uint32_t refpage_idx, char oper_byte);
 int dec_acc(uint32_t refpage_idx, char oper_byte);

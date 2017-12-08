@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <math.h>
 #include <sys/time.h>
 
@@ -32,7 +33,7 @@ node* head;
 node* tail;
 
 int main(int argc, char *argv[]) {
-  clock_t timer;
+  struct timeval start, end, diff;
 
   if (argc < 4 || argc > 4) {
     print_error(E_USG);
@@ -63,14 +64,16 @@ int main(int argc, char *argv[]) {
   }
 
   output = (t_output *) calloc(1, sizeof(t_output));
+
+  gettimeofday(&start, NULL);
   init(pagesize, memsize);
 
-  timer = clock();
   simulate(pagesize, memsize);
-  timer = clock() - timer;
+  gettimeofday(&end, NULL);
 
-  double elapsed = ((double) timer) / CLOCKS_PER_SEC;
-  print_output(tmpstrat, elapsed);
+  timeval_subtract(&diff, &end, &start);
+
+  print_output(tmpstrat, &diff);
 }
 
 void init(int pagesize, uint32_t memsize) {
@@ -249,23 +252,20 @@ uint32_t handle_pfault() {
   switch (strat) {
     case NONE:
       return none_handler();
-      break;
     case MRAND:
       return mrand_handler(pmem_len);
-      break;
     case LRU:
       return lru_handler();
-      break;
     case SEC:
       return sec_handler();
-      break;
   }
+  return 0;
 }
 
 // Prints the output of the simulator
-void print_output(char* strategy, double elapsed) {
-  printf("%i references processed using `%s` in %f sec.\n",
-      output->memrefs, strategy, elapsed);
+void print_output(char* strategy, struct timeval *elapsed) {
+  printf("%i references processed using `%s` in %ld.%06ld sec.\n",
+      output->memrefs, strategy, elapsed->tv_sec, elapsed->tv_usec);
   printf("page faults = %i, write count = %i, flushes %i\n",
       output->pagefaults, output->writes, output->flushes);
   printf("accumulator = %i\n", output->acc);
@@ -317,4 +317,14 @@ void print_error(int errorcode) {
       break;
   }
   exit(EXIT_FAILURE);
+}
+
+/* Return 1 if the difference is negative, otherwise 0.  */
+int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval *t1)
+{
+    long int diff = (t2->tv_usec + 1000000 * t2->tv_sec) - (t1->tv_usec + 1000000 * t1->tv_sec);
+    result->tv_sec = diff / 1000000;
+    result->tv_usec = diff % 1000000;
+
+    return (diff<0);
 }
