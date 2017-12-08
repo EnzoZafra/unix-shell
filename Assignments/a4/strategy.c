@@ -17,7 +17,7 @@
 
 // "none" strategy
 uint32_t none_handler() {
-  // TODO
+  // Dont have to do any eviction for none.
   return -1;
 }
 
@@ -26,12 +26,8 @@ uint32_t mrand_handler(uint32_t numframes) {
   uint32_t pmem_idx = -1, v_addr = -1;
   bool findingEvict = true;
 
-  // TODO
-  printf("Called me\n");
-
   while(findingEvict) {
     pmem_idx = limited_rand(numframes);
-    printf("pmem_idx rand: %i\n", pmem_idx);
     v_addr = memory[pmem_idx];
 
     if (v_addr == -1) {

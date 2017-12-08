@@ -47,19 +47,19 @@ extern node* tail;
 void print_error(int errorcode);
 bool ispowerof2(uint32_t x);
 uint32_t roundNearMult(uint32_t value, int multipleof);
-void simulate(int pagesize, uint32_t memsize, strat_t strategy);
+void simulate(int pagesize, uint32_t memsize);
 void print_output(char* strategy, double elapsed);
-int parse_operation(char ref_string[], strat_t strat);
+int parse_operation(char ref_string[]);
 void init(int pagesize, uint32_t memsize);
 uint32_t check_pmem(uint32_t v_addr);
-int check_fault(uint32_t refpage_idx, strat_t strat);
+int check_fault(uint32_t refpage_idx);
 void evict_page(uint32_t index, uint32_t page_idx);
-void load_page(uint32_t avail_index, uint32_t page_idx, strat_t strat);
-uint32_t handle_pfault(strat_t strat);
+void load_page(uint32_t avail_index, uint32_t page_idx);
+uint32_t handle_pfault();
 
-int inc_acc(uint32_t refpage_idx, char oper_byte, strat_t strat);
-int dec_acc(uint32_t refpage_idx, char oper_byte, strat_t strat);
-int write_op(uint32_t refpage_idx, strat_t strat);
-int read_op(uint32_t refpage_idx, strat_t strat);
+int inc_acc(uint32_t refpage_idx, char oper_byte);
+int dec_acc(uint32_t refpage_idx, char oper_byte);
+int write_op(uint32_t refpage_idx);
+int read_op(uint32_t refpage_idx);
 
 #endif

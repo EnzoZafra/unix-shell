@@ -18,6 +18,7 @@
 #include "strategy.h"
 #include "pagetable.h"
 #include "a4vmsim.h"
+#include "queue.h"
 
 extern t_ptentry** pagetable;
 t_output *output;
@@ -25,10 +26,14 @@ int page_numbits;
 uint32_t* memory;
 uint32_t pmem_len = 0;
 uint32_t numframes;
+strat_t strat = -1;
 
-// Doubly linked list stack for LRU
+// Doubly linked list stack for LRU and MRAND
 node* head;
 node* tail;
+
+// Circular queue for SEC
+t_queue *queue;
 
 int main(int argc, char *argv[]) {
   if (argc < 4 || argc > 4) {
@@ -47,15 +52,14 @@ int main(int argc, char *argv[]) {
   memsize = roundNearMult(memsize, pagesize);
 
   char* tmpstrat = argv[3];
-  strat_t strategy = -1;
   if (strcmp(tmpstrat, "none") == 0) {
-    strategy = NONE;
+    strat = NONE;
   } else if (strcmp(tmpstrat, "mrand") == 0) {
-    strategy = MRAND;
+    strat = MRAND;
   } else if (strcmp(tmpstrat, "lru") == 0) {
-    strategy = LRU;
+    strat = LRU;
   } else if (strcmp(tmpstrat, "sec") == 0) {
-    strategy = SEC;
+    strat = SEC;
   } else {
     print_error(E_STRAT);
   }
@@ -65,7 +69,7 @@ int main(int argc, char *argv[]) {
   clock_t timer;
   init(pagesize, memsize);
   timer = clock();
-  simulate(pagesize, memsize, strategy);
+  simulate(pagesize, memsize);
   timer = clock() - timer;
   double elapsed = ((double) timer) / CLOCKS_PER_SEC;
   print_output(tmpstrat, elapsed);
@@ -96,7 +100,7 @@ void init(int pagesize, uint32_t memsize) {
 }
 
 // Main function for the simulator
-void simulate(int pagesize, uint32_t memsize, strat_t strat) {
+void simulate(int pagesize, uint32_t memsize) {
   char ref_string[SYS_BITS/8];
 
   while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
@@ -108,12 +112,12 @@ void simulate(int pagesize, uint32_t memsize, strat_t strat) {
     printf("%x\n", ref_string[0] & 0xff);
 
     output->memrefs++;
-    output->pagefaults += parse_operation(ref_string, strat);
+    output->pagefaults += parse_operation(ref_string);
   }
 }
 
 // Parses the reference string for the operation
-int parse_operation(char ref_string[], strat_t strat) {
+int parse_operation(char ref_string[]) {
   uint32_t oper_byte = ref_string[0];
   // Shift 6 bits to the right since the opcode
   // resides in the 2 most significant bits
@@ -134,13 +138,13 @@ int parse_operation(char ref_string[], strat_t strat) {
 
   switch(oper_bits) {
     case 0:
-      return inc_acc(refpage_idx, oper_byte, strat);
+      return inc_acc(refpage_idx, oper_byte);
     case 1:
-      return dec_acc(refpage_idx, oper_byte, strat);
+      return dec_acc(refpage_idx, oper_byte);
     case 2:
-      return write_op(refpage_idx, strat);
+      return write_op(refpage_idx);
     case 3:
-      return read_op(refpage_idx, strat);
+      return read_op(refpage_idx);
     default:
       print_error(E_OP_PARSE);
       return 0;
@@ -148,50 +152,50 @@ int parse_operation(char ref_string[], strat_t strat) {
 }
 
 // Increment Accumulator operation
-int inc_acc(uint32_t refpage_idx, char oper_byte, strat_t strat) {
+int inc_acc(uint32_t refpage_idx, char oper_byte) {
   int value = (oper_byte & 0x3F);
   output->acc += value;
 
-  return check_fault(refpage_idx, strat);
+  return check_fault(refpage_idx);
 }
 
 // Decrement Accumulator operation
-int dec_acc(uint32_t refpage_idx, char oper_byte, strat_t strat) {
+int dec_acc(uint32_t refpage_idx, char oper_byte) {
   int value = (oper_byte & 0x3F);
   output->acc -= value;
 
-  return check_fault(refpage_idx, strat);
+  return check_fault(refpage_idx);
 }
 
 // Write data to page containing reference word
-int write_op(uint32_t refpage_idx, strat_t strat) {
+int write_op(uint32_t refpage_idx) {
   output->writes++;
   t_ptentry* ref_page = pagetable[refpage_idx];
   ref_page->modified = 1;
 
-  return check_fault(refpage_idx, strat);
+  return check_fault(refpage_idx);
 }
 
 // Read data from page containing reference word
-int read_op(uint32_t pNum, strat_t strat) {
+int read_op(uint32_t pNum) {
   printf("pNum: %i\n", pNum);
   //TODO
   return 0;
 }
 
-int check_fault(uint32_t refpage_idx, strat_t strat) {
+int check_fault(uint32_t refpage_idx) {
   int returnval = 0;
   uint32_t pNum = pagetable[refpage_idx]->virtual_addr;
   // If there is a page fault, handle
   if (check_pmem(pNum) == -1 && strat != NONE) {
     // If phys memory is full, need to evict a page
     if (pmem_len == numframes) {
-      uint32_t freed = handle_pfault(strat);
-      load_page(freed, refpage_idx, strat);
+      uint32_t freed = handle_pfault();
+      load_page(freed, refpage_idx);
     }
     // if not full, just load the page in
     else if (pmem_len < numframes) {
-      load_page(pmem_len, refpage_idx, strat);
+      load_page(pmem_len, refpage_idx);
     }
     else {
       print_error(E_PMEM_OVERFLOW);
@@ -261,7 +265,7 @@ void evict_page(uint32_t pmem_idx, uint32_t page_idx) {
   pmem_len--;
 }
 
-void load_page(uint32_t avail_index, uint32_t page_idx, strat_t strat) {
+void load_page(uint32_t avail_index, uint32_t page_idx) {
   t_ptentry* page = pagetable[page_idx];
 
   memory[avail_index] = page->virtual_addr;
@@ -275,7 +279,7 @@ void load_page(uint32_t avail_index, uint32_t page_idx, strat_t strat) {
   }
 }
 
-uint32_t handle_pfault(strat_t strat) {
+uint32_t handle_pfault() {
   switch (strat) {
     case NONE:
       return none_handler();
@@ -284,8 +288,6 @@ uint32_t handle_pfault(strat_t strat) {
       return mrand_handler(pmem_len);
       break;
     case LRU:
-      //TODO
-      printf("LRU %i\n", LRU);
       return lru_handler();
       break;
     case SEC:
