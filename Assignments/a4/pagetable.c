@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 #include "pagetable.h"
+#include "a4vmsim.h"
 
 // Global ptable
 t_ptentry** pagetable;
@@ -46,9 +47,7 @@ uint32_t getEntry(uint32_t v_addr) {
   if (out->virtual_addr == v_addr) {
     return v_addr;
   } else {
-    // TODO:
-    printf("Something went wrong\n");
-    exit(1);
+    print_error(E_HASHMAP);
   }
   return -1;
 }

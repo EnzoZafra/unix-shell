@@ -21,7 +21,8 @@ typedef enum {
   E_OP_PARSE,
   E_PMEM_OVERFLOW,
   E_NOT_IN_PMEM,
-  E_MRAND_3REFS
+  E_MRAND_3REFS,
+  E_HASHMAP
 } error_t;
 
 typedef enum {

@@ -104,10 +104,12 @@ void simulate(int pagesize, uint32_t memsize) {
   while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
-    printf("\nref_string: %x", ref_string[3] & 0xff);
-    printf("%x", ref_string[2] & 0xff);
-    printf("%x", ref_string[1] & 0xff);
-    printf("%x\n", ref_string[0] & 0xff);
+
+    //TODO:
+    /* printf("\nref_string: %x", ref_string[3] & 0xff); */
+    /* printf("%x", ref_string[2] & 0xff); */
+    /* printf("%x", ref_string[1] & 0xff); */
+    /* printf("%x\n", ref_string[0] & 0xff); */
 
     output->memrefs++;
     output->pagefaults += parse_operation(ref_string);
@@ -130,9 +132,6 @@ int parse_operation(char ref_string[]) {
   tmp = tmp >> 8;
   uint32_t pNum = tmp & ((1 << page_numbits) - 1);
   uint32_t refpage_idx = getEntry(pNum);
-
-  //TODO:
-  printf("pNum: %i\n", pNum);
 
   switch(oper_bits) {
     case 0:
@@ -175,10 +174,8 @@ int write_op(uint32_t refpage_idx) {
 }
 
 // Read data from page containing reference word
-int read_op(uint32_t pNum) {
-  printf("pNum: %i\n", pNum);
-  //TODO
-  return 0;
+int read_op(uint32_t refpage_idx) {
+  return check_fault(refpage_idx);
 }
 
 int check_fault(uint32_t refpage_idx) {
@@ -220,9 +217,9 @@ int check_fault(uint32_t refpage_idx) {
   }
 
   // TODO: debug
-  if (pagetable[refpage_idx]->valid == 0) {
-    printf("non valid page referenced\n");
-  }
+  /* if (pagetable[refpage_idx]->valid == 0) { */
+  /*   printf("non valid page referenced\n"); */
+  /* } */
 
   return returnval;
 }
@@ -230,7 +227,8 @@ int check_fault(uint32_t refpage_idx) {
 uint32_t check_pmem(uint32_t v_addr) {
   for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
-      printf("----------still in mem: index: %i ---------\n", i);
+      // TODO
+      /* printf("----------still in mem: index: %i ---------\n", i); */
       return i;
     }
   }
@@ -248,10 +246,6 @@ void evict_page(uint32_t pmem_idx, uint32_t page_idx) {
   /* printf("page->valid: %i\n", pageEvicted->valid); */
   /* printf("page->ref_bit: %i\n", pageEvicted->reference_bit); */
   /* printf("page->modified: %i\n", pageEvicted->modified); */
-
-  if(pageEvicted->valid == 0) {
-    printf("EVICTING A NON-VALID PAGE");
-  }
 
   // If a page has been modified since it's brought in, inc flushes
   if(pageEvicted->modified == 1) {
@@ -351,11 +345,8 @@ void print_error(int errorcode) {
     case E_MRAND_3REFS:
       fprintf(stderr, "stack holding past k=3 references\n");
       break;
-    case 9:
-      fprintf(stderr, "\n");
-      break;
-    case 10:
-      fprintf(stderr, "\n");
+    case E_HASHMAP:
+      fprintf(stderr, "failed to retrieve page from hashmap\n");
       break;
   }
   exit(EXIT_FAILURE);
