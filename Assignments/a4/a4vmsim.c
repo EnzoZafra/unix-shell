@@ -32,6 +32,8 @@ node* head;
 node* tail;
 
 int main(int argc, char *argv[]) {
+  clock_t timer;
+
   if (argc < 4 || argc > 4) {
     print_error(E_USG);
   }
@@ -61,27 +63,14 @@ int main(int argc, char *argv[]) {
   }
 
   output = (t_output *) calloc(1, sizeof(t_output));
-
-  clock_t timer;
   init(pagesize, memsize);
+
   timer = clock();
   simulate(pagesize, memsize);
   timer = clock() - timer;
+
   double elapsed = ((double) timer) / CLOCKS_PER_SEC;
   print_output(tmpstrat, elapsed);
-
-  /* int extern len; */
-  /* printf("################################\n"); */
-  /* for (int i = 0; i < len; i++) { */
-  /*   printf("entry index: %i\n", i); */
-  /*   printf("v_addr: %i\n", pagetable[i]->virtual_addr); */
-  /*   printf("p_addr: %i\n", pagetable[i]->physical_addr); */
-  /*   printf("valid: %i\n", pagetable[i]->valid); */
-  /*   printf("reference_bit: %i\n", pagetable[i]->reference_bit); */
-  /*   printf("modified: %i\n", pagetable[i]->modified); */
-  /*   printf("\n"); */
-  /* } */
-  /* printf("################################\n"); */
 }
 
 void init(int pagesize, uint32_t memsize) {
@@ -104,12 +93,6 @@ void simulate(int pagesize, uint32_t memsize) {
   while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
-
-    //TODO:
-    /* printf("\nref_string: %x", ref_string[3] & 0xff); */
-    /* printf("%x", ref_string[2] & 0xff); */
-    /* printf("%x", ref_string[1] & 0xff); */
-    /* printf("%x\n", ref_string[0] & 0xff); */
 
     output->memrefs++;
     output->pagefaults += parse_operation(ref_string);
@@ -216,19 +199,12 @@ int check_fault(uint32_t refpage_idx) {
     pagetable[refpage_idx]->reference_bit = 1;
   }
 
-  // TODO: debug
-  /* if (pagetable[refpage_idx]->valid == 0) { */
-  /*   printf("non valid page referenced\n"); */
-  /* } */
-
   return returnval;
 }
 
 uint32_t check_pmem(uint32_t v_addr) {
   for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
-      // TODO
-      /* printf("----------still in mem: index: %i ---------\n", i); */
       return i;
     }
   }
@@ -237,15 +213,6 @@ uint32_t check_pmem(uint32_t v_addr) {
 
 void evict_page(uint32_t pmem_idx, uint32_t page_idx) {
   t_ptentry* pageEvicted = pagetable[page_idx];
-
-  /* // TODO: REMOVE DEBUG */
-  /* printf("page evict info: \n"); */
-  /* printf("pagetable index: %i\n", page_idx); */
-  /* printf("page->v_addr: %i\n", pageEvicted->virtual_addr); */
-  /* printf("page->p_addr: %i\n", pageEvicted->physical_addr); */
-  /* printf("page->valid: %i\n", pageEvicted->valid); */
-  /* printf("page->ref_bit: %i\n", pageEvicted->reference_bit); */
-  /* printf("page->modified: %i\n", pageEvicted->modified); */
 
   // If a page has been modified since it's brought in, inc flushes
   if(pageEvicted->modified == 1) {

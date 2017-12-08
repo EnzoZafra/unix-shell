@@ -109,13 +109,6 @@ void printList(node* root) {
     root = root->below;
   }
   printf("\n");
-
-  /* printf("\nTraversal in up direction \n"); */
-  /* while (last != NULL) */
-  /* { */
-  /*   printf(" %d ", last->data); */
-  /*   last = last->above; */
-  /* } */
 }
 
 // moves a node from a middle of the stack to the top
