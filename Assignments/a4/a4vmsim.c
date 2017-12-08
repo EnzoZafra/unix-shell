@@ -61,13 +61,13 @@ int main(int argc, char *argv[]) {
   }
 
   output = (t_output *) calloc(1, sizeof(t_output));
-  struct timeval start, end;
 
-  gettimeofday(&start, NULL);
+  clock_t timer;
   init(pagesize, memsize);
+  timer = clock();
   simulate(pagesize, memsize, strategy);
-  gettimeofday(&end, NULL);
-  double elapsed = end.tv_sec - start.tv_sec;
+  timer = clock() - timer;
+  double elapsed = ((double) timer) / CLOCKS_PER_SEC;
   print_output(tmpstrat, elapsed);
 
   /* int extern len; */
