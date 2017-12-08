@@ -31,7 +31,6 @@ void init_ptable(uint32_t max_size) {
     tmp->valid = 0;
     tmp->reference_bit = 0;
     tmp->modified = 0;
-    /* tmp->virtual_addr = -1; */
     tmp->virtual_addr = i;
     tmp->physical_addr = -1;
     pagetable[i] = tmp;
@@ -43,22 +42,11 @@ uint32_t ptable_len() {
 }
 
 uint32_t getEntry(uint32_t v_addr) {
-
-  /* for (int i = 0; i < len; i++) { */
-  /*   t_ptentry* out = pagetable[i]; */
-  /*   if (out->virtual_addr == v_addr) { */
-  /*     return i; */
-  /*   } */
-  /* } */
-  /* // If not found, add the page entry into the table */
-  /* return initEntry(v_addr); */
-
   t_ptentry* out = pagetable[v_addr];
   if (out->virtual_addr == v_addr) {
     return v_addr;
   } else {
-
-    printf("out->v_addr: %i, v_addr: %i\n", out->virtual_addr, v_addr);
+    // TODO:
     printf("Something went wrong\n");
     exit(1);
   }

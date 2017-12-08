@@ -145,116 +145,128 @@ uint32_t stack_size() {
 /*   push(&head, &tail, 150); */
 /*   printList(head); */
 
-/*   printf("Delete 23\n"); */
-/*   node* tmp = search(&head, 23); */
-/*   del(&head, &tail, tmp); */
-/*   free(tmp); */
-/*   printList(head); */
+/*   node* tmp = tail; */
+/*   // Traverse (queue) look for page with ref bit = 0 */
+/*   while (tmp != NULL) { */
+/*     printf("%i->", tmp->data) */
+/*     tmp = tmp->above; */
 
-/*   printf("Try to Delete 696969\n"); */
-/*   tmp = search(&head, 696969); */
-/*   del(&head, &tail, tmp); */
-/*   free(tmp); */
-/*   printList(head); */
-
-/*   printf("Move 15 to top\n"); */
-/*   moveToTop(&head, &tail, 15); */
-/*   printList(head); */
-
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
+/*     // When we've gone full circle go back up. */
+/*     if (tmp == NULL) { */
+/*       tmp = tail; */
+/*     } */
 /*   } */
 
-/*   printf("Delete 15\n"); */
-/*   tmp = search(&head, 15); */
-/*   del(&head, &tail, tmp); */
-/*   free(tmp); */
-/*   printList(head); */
+  /* printf("Delete 23\n"); */
+  /* node* tmp = search(&head, 23); */
+  /* del(&head, &tail, tmp); */
+  /* free(tmp); */
+  /* printList(head); */
 
-/*   printf("pop\n"); */
-/*   pop(&head); */
-/*   printList(head); */
+  /* printf("Try to Delete 696969\n"); */
+  /* tmp = search(&head, 696969); */
+  /* del(&head, &tail, tmp); */
+  /* free(tmp); */
+  /* printList(head); */
 
-/*   printf("Push 1111 and 2309\n"); */
-/*   push(&head, &tail, 1111); */
-/*   push(&head, &tail, 2309); */
-/*   printList(head); */
+  /* printf("Move 15 to top\n"); */
+  /* moveToTop(&head, &tail, 15); */
+  /* printList(head); */
 
-/*   printf("pop\n"); */
-/*   pop(&head); */
-/*   printList(head); */
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
 
-/*   printf("Delete 10\n"); */
-/*   tmp = search(&head, 10); */
-/*   del(&head, &tail, tmp); */
-/*   free(tmp); */
-/*   printList(head); */
+  /* printf("Delete 15\n"); */
+  /* tmp = search(&head, 15); */
+  /* del(&head, &tail, tmp); */
+  /* free(tmp); */
+  /* printList(head); */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("pop\n"); */
+  /* pop(&head); */
+  /* printList(head); */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("Push 1111 and 2309\n"); */
+  /* push(&head, &tail, 1111); */
+  /* push(&head, &tail, 2309); */
+  /* printList(head); */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("pop\n"); */
+  /* pop(&head); */
+  /* printList(head); */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("Delete 10\n"); */
+  /* tmp = search(&head, 10); */
+  /* del(&head, &tail, tmp); */
+  /* free(tmp); */
+  /* printList(head); */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
 
-/*   printf("Delete from tail\n"); */
-/*   delTail(&head, &tail); */
-/*   printList(head); */
-/*   if (tail == NULL) { */
-/*     printf("Tail null\n"); */
-/*   } else { */
-/*     printf("Tail value: %i\n", tail->data); */
-/*   } */
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
+
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
+
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
+
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
+
+  /* printf("Delete from tail\n"); */
+  /* delTail(&head, &tail); */
+  /* printList(head); */
+  /* if (tail == NULL) { */
+  /*   printf("Tail null\n"); */
+  /* } else { */
+  /*   printf("Tail value: %i\n", tail->data); */
+  /* } */
 /* } */

@@ -18,7 +18,6 @@
 #include "strategy.h"
 #include "pagetable.h"
 #include "a4vmsim.h"
-#include "queue.h"
 
 extern t_ptentry** pagetable;
 t_output *output;
@@ -31,9 +30,6 @@ strat_t strat = -1;
 // Doubly linked list stack for LRU and MRAND
 node* head;
 node* tail;
-
-// Circular queue for SEC
-t_queue *queue;
 
 int main(int argc, char *argv[]) {
   if (argc < 4 || argc > 4) {
@@ -95,8 +91,10 @@ void init(int pagesize, uint32_t memsize) {
   init_ptable(pow(2, page_numbits));
   memory = malloc(numframes * sizeof(uint32_t));
 
-  head = NULL;
-  tail = NULL;
+  if (strat == LRU || strat == MRAND || strat == SEC) {
+    head = NULL;
+    tail = NULL;
+  }
 }
 
 // Main function for the simulator
@@ -217,6 +215,9 @@ int check_fault(uint32_t refpage_idx) {
     }
     push(&head, &tail, pNum);
   }
+  else if (strat == SEC) {
+    pagetable[refpage_idx]->reference_bit = 1;
+  }
 
   // TODO: debug
   if (pagetable[refpage_idx]->valid == 0) {
@@ -275,6 +276,10 @@ void load_page(uint32_t avail_index, uint32_t page_idx) {
 
   // If LRU strategy, keep a stack of page numbers
   if (strat == LRU) {
+    push(&head, &tail, page->virtual_addr);
+  }
+  // If SEC, we can use the stack as a queue, but we have to dequeue from tail
+  else if (strat == SEC) {
     push(&head, &tail, page->virtual_addr);
   }
 }
