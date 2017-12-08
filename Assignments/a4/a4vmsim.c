@@ -1,4 +1,4 @@
-/**
+  /**
   *
   * a4vmsim.c
   *
@@ -25,8 +25,11 @@ t_output *output;
 int page_numbits;
 uint32_t* memory;
 uint32_t pmem_len = 0;
-uint32_t last3_refs[3];
 uint32_t numframes;
+
+// Doubly linked list stack for LRU
+node* head;
+node* tail;
 
 int main(int argc, char *argv[]) {
   if (argc < 4 || argc > 4) {
@@ -67,6 +70,11 @@ int main(int argc, char *argv[]) {
   gettimeofday(&end, NULL);
   double elapsed = end.tv_sec - start.tv_sec;
   print_output(tmpstrat, elapsed);
+
+  // TODO: remove debugging
+  if(strategy == LRU) {
+    printList(head);
+  }
 }
 
 void init(int pagesize, uint32_t memsize) {
@@ -75,6 +83,9 @@ void init(int pagesize, uint32_t memsize) {
 
   init_ptable(pow(2, page_numbits));
   memory = malloc(numframes * sizeof(uint32_t));
+
+  head = NULL;
+  tail = NULL;
 }
 
 // Main function for the simulator
@@ -83,13 +94,13 @@ void simulate(int pagesize, uint32_t memsize, strat_t strat) {
 
   // TODO: remove debug
   /* printf("page_numbits: %i\n", page_numbits); */
-  /* int fd = open("test.txt", O_RDONLY); */
+  int fd = open("writetest.txt", O_RDONLY);
 
-  /* while(read(fd, ref_string, SYS_BITS/8)) { */
-  while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
+  while(read(fd, ref_string, SYS_BITS/8)) {
+  /* while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) { */
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
-    printf("ref_string: %x", ref_string[3] & 0xff);
+    printf("\nref_string: %x", ref_string[3] & 0xff);
     printf("%x", ref_string[2] & 0xff);
     printf("%x", ref_string[1] & 0xff);
     printf("%x\n", ref_string[0] & 0xff);
@@ -146,6 +157,8 @@ void dec_acc(char oper_byte) {
 
 // Write data to page containing reference word
 int write_op(uint32_t pNum, strat_t strat) {
+  int returnval = 0;
+
   output->writes++;
   printf("pNum: %i\n", pNum);
 
@@ -157,23 +170,44 @@ int write_op(uint32_t pNum, strat_t strat) {
     // If phys memory is full, need to evict a page
     if (pmem_len == numframes) {
       handle_pfault(strat);
+      load_page(pmem_len, &ref_page, strat);
     }
     // if not full, just load the page in
     else if (pmem_len < numframes) {
-      load_page(pmem_len, ref_page);
+      load_page(pmem_len, &ref_page, strat);
     }
     else {
       print_error(E_PMEM_OVERFLOW);
     }
-    return 1;
+    // TODO:
+    printf("After load: \n");
+    printf("page->vaddr %i\n", ref_page->virtual_addr);
+    printf("page->valid: %i\n", ref_page->valid);
+    returnval = 1;
   }
 
+  // if LRU, most recently referenced page must be moved to top
+  if (strat == LRU) {
+    moveToTop(&head, &tail, pNum);
+  }
+
+  // if MRAND, the stack is being used to hold the last k=3 references.
+  else if (strat == MRAND) {
+    // if we already have 3 references, remove the last one
+    if (stack_size() > 3) {
+      print_error(E_MRAND_3REFS);
+    }
+    else if (stack_size() == 3) {
+      delTail(&head, &tail);
+    }
+    push(&head, &tail, pNum);
+  }
   // TODO: debug
   if (ref_page->valid == 0) {
     printf("non valid page referenced at end of write\n");
   }
 
-  return 0;
+  return returnval;
 }
 
 // Read data from page containing reference word
@@ -188,40 +222,56 @@ uint32_t check_pmem(uint32_t v_addr) {
   /* printf("v_addr: %i\n", v_addr); */
   for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
-      printf("returned index: %i\n", i);
+      printf("------------- returned index: %i ---------\n", i);
       return i;
     }
   }
   return -1;
 }
 
-void evict_page(uint32_t pmem_idx, t_ptentry* pageEvicted) {
+void evict_page(uint32_t pmem_idx, t_ptentry** pageEvicted) {
+
   // TODO: REMOVE DEBUG
-  if(pageEvicted->valid == 0) {
-    printf("EVICTING A NON-VALID PAGE");
-  }
+  printf("page evict info: \n");
+  printf("page->v_addr: %i\n", ((t_ptentry*)pageEvicted)->virtual_addr);
+  printf("page->p_addr: %i\n", ((t_ptentry*)pageEvicted)->physical_addr);
+  printf("page->valid: %i\n", ((t_ptentry*)pageEvicted)->valid);
+  printf("page->ref_bit: %i\n", ((t_ptentry*)pageEvicted)->reference_bit);
+  printf("page->modified: %i\n", ((t_ptentry*)pageEvicted)->modified);
+
+  /* if(pageEvicted->valid == 0) { */
+  /*   printf("EVICTING A NON-VALID PAGE"); */
+  /* } else { */
+  /*   printf("------ EVICTING VALID PAGE -----"); */
+  /* } */
 
   // If a page has been modified since it's brought in, inc flushes
-  if(pageEvicted->modified == 1) {
+  if(((t_ptentry*)pageEvicted)->modified == 1) {
     output->flushes++;
   }
 
   memory[pmem_idx] = 0;
-  pageEvicted->valid = 0;
-  pageEvicted->reference_bit = 0;
-  pageEvicted->modified = 0;
-  pageEvicted->physical_addr = -1;
+  ((t_ptentry*)pageEvicted)->valid = 0;
+  ((t_ptentry*)pageEvicted)->reference_bit = 0;
+  ((t_ptentry*)pageEvicted)->modified = 0;
+  ((t_ptentry*)pageEvicted)->physical_addr = -1;
   pmem_len--;
 }
 
-void load_page(uint32_t avail_index, t_ptentry* page) {
-  memory[avail_index] = page->virtual_addr;
-  page->physical_addr = avail_index;
-  page->valid = 1;
+void load_page(uint32_t avail_index, t_ptentry** page, strat_t strat) {
+  memory[avail_index] = ((t_ptentry*)page)->virtual_addr;
+  ((t_ptentry*)page)->physical_addr = avail_index;
+  ((t_ptentry*)page)->valid = 1;
   pmem_len++;
 
-  printf("page->vaddr %i\n", page->virtual_addr);
-  printf("page->valid: %i\n", page->valid);
+  // If LRU strategy, keep a stack of page numbers
+  if (strat == LRU) {
+    push(&head, &tail, ((t_ptentry*)page)->virtual_addr);
+  }
+
+  printf("During load: \n");
+  printf("page->vaddr %i\n", ((t_ptentry*)page)->virtual_addr);
+  printf("page->valid: %i\n", ((t_ptentry*)page)->valid);
 }
 
 void handle_pfault(strat_t strat) {
@@ -233,6 +283,8 @@ void handle_pfault(strat_t strat) {
       mrand_handler(pmem_len);
       break;
     case LRU:
+      //TODO
+      printf("LRU %i\n", LRU);
       lru_handler();
       break;
     case SEC:
@@ -285,11 +337,11 @@ void print_error(int errorcode) {
     case E_PMEM_OVERFLOW:
       fprintf(stderr, "physical memory overflow\n");
       break;
-    case 7:
-      fprintf(stderr, "\n");
+    case E_NOT_IN_PMEM:
+      fprintf(stderr, "could not find evicted page in the physical memory\n");
       break;
-    case 8:
-      fprintf(stderr, "\n");
+    case E_MRAND_3REFS:
+      fprintf(stderr, "stack holding past k=3 references\n");
       break;
     case 9:
       fprintf(stderr, "\n");

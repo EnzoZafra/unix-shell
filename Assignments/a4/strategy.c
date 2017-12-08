@@ -21,30 +21,42 @@ void none_handler() {
 }
 
 // "mrand" strategy
-void mrand_handler(uint32_t numframes, uint32_t last3_refs[]) {
-  uint32_t pmem_idx, v_addr;
+void mrand_handler(uint32_t numframes) {
+  uint32_t pmem_idx = -1, v_addr = -1;
   bool findingEvict = true;
+
+  // TODO
+  printf("Called me\n");
 
   while(findingEvict) {
     pmem_idx = limited_rand(numframes);
     v_addr = memory[pmem_idx];
-    findingEvict = false;
 
-    for (int i = 0; i < 3; i++) {
-      if (v_addr == last3_refs[i]) {
-        findingEvict = true;
-        break;
-      }
+    if (v_addr == -1) {
+      print_error(E_NOT_IN_PMEM);
+    }
+
+    // Check the stack which holds the last 3 refs
+    if (search(&head, v_addr) == NULL) {
+      findingEvict = false;
     }
   }
 
   t_ptentry* evictedPage = getEntry(v_addr);
-  evict_page(pmem_idx, evictedPage) ;
+  evict_page(pmem_idx, &evictedPage);
 }
 
 // "lru" strategy
 void lru_handler() {
-  // TODO
+  // Least recently used will be in tail of stack
+  uint32_t v_addr = delTail(&head, &tail);
+  t_ptentry* evictedPage = getEntry(v_addr);
+
+  uint32_t pmem_idx = check_pmem(v_addr);
+  if (pmem_idx == -1) {
+    print_error(E_NOT_IN_PMEM);
+  }
+  evict_page(pmem_idx, &evictedPage);
 }
 
 // "sec" strategy

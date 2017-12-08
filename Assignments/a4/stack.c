@@ -12,7 +12,9 @@
 
 #include "stack.h"
 
-node* newNode(int data) {
+uint32_t size = 0;
+
+node* newNode(uint32_t data) {
   node* item = (node *) malloc(sizeof(node));
   item->data = data;
   item->above = NULL;
@@ -21,7 +23,8 @@ node* newNode(int data) {
   return item;
 }
 
-void push(node** head, node** tail, int data) {
+void push(node** head, node** tail, uint32_t data) {
+  size++;
   node* temp = newNode(data);
 
   if(*head == NULL && *tail == NULL) {
@@ -36,6 +39,7 @@ void push(node** head, node** tail, int data) {
 }
 
 node* pop(node** head) {
+  size--;
   node* tmp = (*head);
   (*head)->below->above = NULL;
   *head = (*head)->below;
@@ -43,7 +47,7 @@ node* pop(node** head) {
   return tmp;
 }
 
-node* search(node** head, int data) {
+node* search(node** head, uint32_t data) {
   if ((*head) == NULL) {
     printf("Head is null\n");
     return NULL;
@@ -54,7 +58,6 @@ node* search(node** head, int data) {
   while (tmp->data != data) {
     tmp = tmp->below;
     if (tmp == NULL) {
-      printf("Did not find node to be deleted\n");
       return NULL;
     }
   }
@@ -62,9 +65,9 @@ node* search(node** head, int data) {
   return tmp;
 }
 
-void del(node** head, node** tail, node* tmp) {
+uint32_t del(node** head, node** tail, node* tmp) {
   if ((*head) == NULL || tmp == NULL || (*tail) == NULL) {
-    return;
+    return -1;
   }
 
   // if head or tail being deleted, change corresponding ref
@@ -88,11 +91,12 @@ void del(node** head, node** tail, node* tmp) {
 
   // Free memory occupied
   /* free(tmp); */
-  return;
+  size--;
+  return tmp->data;
 }
 
-void delTail(node** head, node** tail) {
-  del(head, tail, (*tail));
+uint32_t delTail(node** head, node** tail) {
+  return del(head, tail, (*tail));
 }
 
 // This function prints contents of linked list starting from the given node
@@ -115,10 +119,15 @@ void printList(node* root) {
 }
 
 // moves a node from a middle of the stack to the top
-void moveToTop(node** head, node** tail, int data) {
+void moveToTop(node** head, node** tail, uint32_t data) {
   node* tobedeleted = search(head, data);
   del(head, tail, tobedeleted);
   push(head, tail, data);
+}
+
+// returns the size of stack
+uint32_t stack_size() {
+  return size;
 }
 
 // Testing stack

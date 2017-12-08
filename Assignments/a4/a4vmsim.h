@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include "pagetable.h"
+#include "stack.h"
 
 #ifndef a4vmsim_h
 #define a4vmsim_h
@@ -18,7 +19,9 @@ typedef enum {
   E_MEMSIZE,
   E_STRAT,
   E_OP_PARSE,
-  E_PMEM_OVERFLOW
+  E_PMEM_OVERFLOW,
+  E_NOT_IN_PMEM,
+  E_MRAND_3REFS
 } error_t;
 
 typedef enum {
@@ -38,6 +41,8 @@ typedef struct output {
 
 #define SYS_BITS 32
 extern uint32_t* memory;
+extern node* head;
+extern node* tail;
 
 void print_error(int errorcode);
 bool ispowerof2(uint32_t x);
@@ -47,8 +52,8 @@ void print_output(char* strategy, double elapsed);
 int parse_operation(char ref_string[], strat_t strat);
 void init(int pagesize, uint32_t memsize);
 uint32_t check_pmem(uint32_t v_addr);
-void evict_page(uint32_t index, t_ptentry* page);
-void load_page(uint32_t avail_index, t_ptentry* page);
+void evict_page(uint32_t index, t_ptentry** page);
+void load_page(uint32_t avail_index, t_ptentry** page, strat_t strat);
 void handle_pfault(strat_t strat);
 
 void inc_acc(char oper_byte);
