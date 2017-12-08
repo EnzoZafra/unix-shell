@@ -13,8 +13,6 @@
 #include <unistd.h>
 #include <math.h>
 #include <sys/time.h>
-//TODO: remove below
-#include <fcntl.h>
 
 #include "stack.h"
 #include "strategy.h"
@@ -101,11 +99,6 @@ void init(int pagesize, uint32_t memsize) {
 void simulate(int pagesize, uint32_t memsize, strat_t strat) {
   char ref_string[SYS_BITS/8];
 
-  // TODO: remove debug
-  /* printf("page_numbits: %i\n", page_numbits); */
-  int fd = open("writetest.txt", O_RDONLY);
-
-  /* while(read(fd, ref_string, SYS_BITS/8)) { */
   while(read(STDIN_FILENO, ref_string, SYS_BITS/8)) {
     // Order of ref_string from MSB to LSB is:
     // ref[3] ref[2] ref[1] ref[0]
@@ -134,18 +127,20 @@ int parse_operation(char ref_string[], strat_t strat) {
   // extract the page number
   tmp = tmp >> 8;
   uint32_t pNum = tmp & ((1 << page_numbits) - 1);
+  uint32_t refpage_idx = getEntry(pNum);
+
+  //TODO:
+  printf("pNum: %i\n", pNum);
 
   switch(oper_bits) {
     case 0:
-      inc_acc(oper_byte);
-      return 0;
+      return inc_acc(refpage_idx, oper_byte, strat);
     case 1:
-      dec_acc(oper_byte);
-      return 0;
+      return dec_acc(refpage_idx, oper_byte, strat);
     case 2:
-      return write_op(pNum, strat);
+      return write_op(refpage_idx, strat);
     case 3:
-      return read_op(pNum, strat);
+      return read_op(refpage_idx, strat);
     default:
       print_error(E_OP_PARSE);
       return 0;
@@ -153,36 +148,28 @@ int parse_operation(char ref_string[], strat_t strat) {
 }
 
 // Increment Accumulator operation
-void inc_acc(char oper_byte) {
+int inc_acc(uint32_t refpage_idx, char oper_byte, strat_t strat) {
   int value = (oper_byte & 0x3F);
   output->acc += value;
+
+  return check_fault(refpage_idx, strat);
 }
 
 // Decrement Accumulator operation
-void dec_acc(char oper_byte) {
+int dec_acc(uint32_t refpage_idx, char oper_byte, strat_t strat) {
   int value = (oper_byte & 0x3F);
   output->acc -= value;
+
+  return check_fault(refpage_idx, strat);
 }
 
 // Write data to page containing reference word
-int write_op(uint32_t pNum, strat_t strat) {
-  int returnval = 0;
-
+int write_op(uint32_t refpage_idx, strat_t strat) {
   output->writes++;
-  printf("pNum: %i\n", pNum);
-
-  uint32_t refpage_idx = getEntry(pNum);
   t_ptentry* ref_page = pagetable[refpage_idx];
   ref_page->modified = 1;
 
-  returnval = check_fault(refpage_idx, strat);
-
-  // TODO: debug
-  if (ref_page->valid == 0) {
-    printf("non valid page referenced at end of write\n");
-  }
-
-  return returnval;
+  return check_fault(refpage_idx, strat);
 }
 
 // Read data from page containing reference word
@@ -226,12 +213,16 @@ int check_fault(uint32_t refpage_idx, strat_t strat) {
     }
     push(&head, &tail, pNum);
   }
+
+  // TODO: debug
+  if (pagetable[refpage_idx]->valid == 0) {
+    printf("non valid page referenced\n");
+  }
+
   return returnval;
 }
 
 uint32_t check_pmem(uint32_t v_addr) {
-  /* printf("len: %i\n", pmem_len); */
-  /* printf("v_addr: %i\n", v_addr); */
   for (uint32_t i = 0; i < pmem_len; i++) {
     if(memory[i] == v_addr) {
       printf("----------still in mem: index: %i ---------\n", i);
@@ -256,9 +247,6 @@ void evict_page(uint32_t pmem_idx, uint32_t page_idx) {
   if(pageEvicted->valid == 0) {
     printf("EVICTING A NON-VALID PAGE");
   }
-  /* else { */
-  /*   printf("------ EVICTING VALID PAGE -----"); */
-  /* } */
 
   // If a page has been modified since it's brought in, inc flushes
   if(pageEvicted->modified == 1) {

@@ -57,9 +57,9 @@ void evict_page(uint32_t index, uint32_t page_idx);
 void load_page(uint32_t avail_index, uint32_t page_idx, strat_t strat);
 uint32_t handle_pfault(strat_t strat);
 
-void inc_acc(char oper_byte);
-void dec_acc(char oper_byte);
-int write_op(uint32_t pnum, strat_t strat);
-int read_op(uint32_t pnum, strat_t strat);
+int inc_acc(uint32_t refpage_idx, char oper_byte, strat_t strat);
+int dec_acc(uint32_t refpage_idx, char oper_byte, strat_t strat);
+int write_op(uint32_t refpage_idx, strat_t strat);
+int read_op(uint32_t refpage_idx, strat_t strat);
 
 #endif
